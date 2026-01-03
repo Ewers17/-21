@@ -1,137 +1,93 @@
 // Глобальные переменные
 let currentUser = null;
+let currentCity = 'Москва';
+let currentCountry = 'РФ';
 let currentCurrency = 'RUB';
-let exchangeRates = {
+let cart = [];
+let products = [];
+let isAdmin = false;
+let currentProduct = null;
+
+// Курсы валют
+const exchangeRates = {
     'RUB': 1,
     'USD': 0.011,
     'UAH': 0.41
 };
-let cart = [];
-let products = [];
-let orders = [];
-let isAdmin = false;
 
-// База данных в памяти
-const mockProducts = [
+// База товаров
+const initialProducts = [
     {
         id: 1,
-        name: "Premium iPhone 15 Pro",
-        description: "Новый флагман Apple с улучшенной камерой",
-        price: 99990,
-        image: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=500",
-        category: "Электроника",
-        weight: 187,
-        premium: true,
+        name: "Premium Gold",
+        description: "Высококачественный продукт премиум класса. Идеальная чистота и качество. Доставка в течение 24 часов.",
+        price: 15000,
+        image: "https://images.unsplash.com/photo-1581235720854-1e3d16e0a3e3?auto=format&fit=crop&w=500",
+        category: "Premium",
         rating: 4.8,
-        reviews: 124
+        reviews: 124,
+        grams: [2, 3, 4, 6, 'B', 'S']
     },
     {
         id: 2,
-        name: "Золотой слиток 1г",
-        description: "Инвестиционный золотой слиток высшей пробы",
-        price: 6500,
-        image: "https://images.unsplash.com/photo-1581235720854-1e3d16e0a3e3?auto=format&fit=crop&w=500",
+        name: "Exclusive Silver",
+        description: "Эксклюзивный серебряный продукт. Редкая коллекционная серия.",
+        price: 8500,
+        image: "https://images.unsplash.com/photo-1575549595555-8c67b3bc79c8?auto=format&fit=crop&w=500",
         category: "Premium",
-        weight: 1,
-        premium: true,
-        rating: 4.9,
-        reviews: 89
+        rating: 4.6,
+        reviews: 89,
+        grams: [2, 3, 4, 'B']
     },
     {
         id: 3,
-        name: "Беспроводные наушники Pro",
-        description: "Шумоподавление, 30 часов работы",
-        price: 14990,
-        image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=500",
-        category: "Электроника",
-        weight: 250,
-        premium: false,
-        rating: 4.6,
-        reviews: 312
+        name: "Platinum Elite",
+        description: "Элитный платиновый продукт высшей пробы. Ограниченная партия.",
+        price: 25000,
+        image: "https://images.unsplash.com/photo-1590426450892-3c7d0bca7b5b?auto=format&fit=crop&w=500",
+        category: "Premium",
+        rating: 4.9,
+        reviews: 56,
+        grams: [3, 4, 6, 'S']
     },
     {
         id: 4,
-        name: "Эксклюзивные часы",
-        description: "Ручная работа, ограниченная серия",
-        price: 245000,
-        image: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=500",
+        name: "Crystal Clear",
+        description: "Кристальной чистоты продукт. 99.9% чистота.",
+        price: 12000,
+        image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=500",
         category: "Premium",
-        weight: 120,
-        premium: true,
-        rating: 4.9,
-        reviews: 45
-    },
-    {
-        id: 5,
-        name: "Игровая консоль",
-        description: "Новейшая консоль с VR поддержкой",
-        price: 45990,
-        image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?auto=format&fit=crop&w=500",
-        category: "Электроника",
-        weight: 4500,
-        premium: false,
         rating: 4.7,
-        reviews: 567
-    },
-    {
-        id: 6,
-        name: "Дизайнерская сумка",
-        description: "Кожаная сумка ручной работы",
-        price: 78900,
-        image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=500",
-        category: "Одежда",
-        weight: 800,
-        premium: true,
-        rating: 4.8,
-        reviews: 78
-    },
-    {
-        id: 7,
-        name: "Премиум кофе",
-        description: "Эксклюзивные зерна из Эфиопии",
-        price: 2490,
-        image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=500",
-        category: "Продукты",
-        weight: 500,
-        premium: false,
-        rating: 4.5,
-        reviews: 234
-    },
-    {
-        id: 8,
-        name: "Умный браслет",
-        description: "Мониторинг здоровья, уведомления",
-        price: 7990,
-        image: "https://images.unsplash.com/photo-1551816230-ef5deaed4a26?auto=format&fit=crop&w=500",
-        category: "Электроника",
-        weight: 45,
-        premium: false,
-        rating: 4.4,
-        reviews: 189
+        reviews: 203,
+        grams: [2, 3, 4, 6, 'B']
     }
 ];
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
-    products = mockProducts;
+    products = [...initialProducts];
     
-    // Показать выбор города при первом заходе
-    if (!localStorage.getItem('citySelected')) {
+    // Проверка выбора города
+    if (!localStorage.getItem('midas_city')) {
         showModal('cityModal');
     } else {
-        const city = localStorage.getItem('city');
-        const country = localStorage.getItem('country');
-        updateCityDisplay(city, country);
-        updateCurrency(country);
+        currentCity = localStorage.getItem('midas_city');
+        currentCountry = localStorage.getItem('midas_country');
+        updateCityDisplay();
     }
     
-    // Инициализация компонентов
+    // Проверка авторизации
+    const savedUser = localStorage.getItem('midas_user');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        isAdmin = currentUser.username.includes('admin');
+        updateUserDisplay();
+    }
+    
+    // Инициализация
     initEventListeners();
     renderProducts();
     updateCartCount();
-    
-    // Проверка авторизации
-    checkAuth();
 });
 
 // Модальные окна
@@ -154,68 +110,143 @@ function closeAllModals() {
     document.body.style.overflow = 'auto';
 }
 
-// Выбор города
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('city-btn')) {
-        const city = e.target.dataset.city;
-        const country = e.target.dataset.country;
-        
-        localStorage.setItem('citySelected', 'true');
-        localStorage.setItem('city', city);
-        localStorage.setItem('country', country);
-        
-        updateCityDisplay(city, country);
-        updateCurrency(country);
-        hideModal('cityModal');
-        showNotification(`Город изменен на ${city}`, 'success');
-    }
+// Обработчики событий
+function initEventListeners() {
+    // Выбор города
+    document.querySelectorAll('.city-card').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentCity = this.dataset.city;
+            currentCountry = this.dataset.country;
+            
+            localStorage.setItem('midas_city', currentCity);
+            localStorage.setItem('midas_country', currentCountry);
+            
+            updateCityDisplay();
+            hideModal('cityModal');
+            showNotification(`Город изменен на ${currentCity}`);
+        });
+    });
+    
+    // Кнопка города в шапке
+    document.getElementById('cityBtn').addEventListener('click', () => showModal('cityModal'));
+    
+    // Авторизация
+    document.getElementById('authBtn').addEventListener('click', () => {
+        if (currentUser) {
+            showNotification(`Вы вошли как ${currentUser.username}`);
+        } else {
+            showModal('authModal');
+        }
+    });
+    
+    // Переключение между логином и регистрацией
+    document.getElementById('showRegister').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('loginForm').classList.remove('active');
+        document.getElementById('registerForm').classList.add('active');
+    });
+    
+    document.getElementById('showLogin').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('registerForm').classList.remove('active');
+        document.getElementById('loginForm').classList.add('active');
+    });
+    
+    // Вход
+    document.getElementById('loginBtn').addEventListener('click', loginUser);
+    
+    // Регистрация
+    document.getElementById('registerBtn').addEventListener('click', registerUser);
+    
+    // Поиск
+    document.getElementById('searchInput').addEventListener('input', performSearch);
+    
+    // Корзина
+    document.getElementById('cartBtn').addEventListener('click', () => {
+        updateCartDisplay();
+        showModal('cartModal');
+    });
     
     // Закрытие модальных окон
-    if (e.target.classList.contains('modal') || e.target.classList.contains('close-modal')) {
-        closeAllModals();
-    }
+    document.querySelectorAll('.close-modal').forEach(btn => {
+        btn.addEventListener('click', closeAllModals);
+    });
     
-    // Табы в модальных окнах
-    if (e.target.classList.contains('tab-btn')) {
-        const tab = e.target.dataset.tab;
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        e.target.classList.add('active');
-        
-        document.querySelectorAll('.auth-form').forEach(form => form.classList.remove('active'));
-        document.getElementById(`${tab}Form`).classList.add('active');
-    }
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAllModals();
+            }
+        });
+    });
     
-    // Табы в админке
-    if (e.target.classList.contains('admin-tab')) {
-        const tab = e.target.dataset.tab;
-        document.querySelectorAll('.admin-tab').forEach(btn => btn.classList.remove('active'));
-        e.target.classList.add('active');
-        
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        document.getElementById(`${tab}Tab`).classList.add('active');
-    }
-});
-
-// Обновление отображения города
-function updateCityDisplay(city, country) {
-    document.getElementById('currentCity').innerHTML = `<i class="fas fa-map-marker-alt"></i> ${city}`;
+    // Техподдержка
+    document.getElementById('supportFooterBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        showModal('supportModal');
+    });
     
-    // Обновление валюты
-    let currencySymbol = '₽';
-    if (country === 'США') currencySymbol = '$';
-    if (country === 'Украина') currencySymbol = '₴';
+    // Админ
+    document.getElementById('adminFooterBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        if (isAdmin) {
+            showNotification('Вы администратор. Для редактирования нажмите кнопку "Редактировать" в карточке товара.');
+        } else {
+            showNotification('Требуется авторизация как администратор', 'error');
+        }
+    });
     
-    document.getElementById('currencyText').textContent = currencySymbol;
+    // Покупка
+    document.getElementById('buyNowBtn').addEventListener('click', startPurchase);
+    document.getElementById('addToCartModalBtn').addEventListener('click', addCurrentToCart);
+    
+    // Оплата
+    document.getElementById('checkoutBtn').addEventListener('click', () => {
+        if (cart.length === 0) {
+            showNotification('Корзина пуста', 'error');
+            return;
+        }
+        setupPayment();
+        hideModal('cartModal');
+        showModal('paymentModal');
+    });
+    
+    // Подтверждение оплаты
+    document.getElementById('confirmPaymentBtn').addEventListener('click', confirmPayment);
+    
+    // Выбор способа оплаты
+    document.querySelectorAll('input[name="payment"]').forEach(input => {
+        input.addEventListener('change', function() {
+            updatePaymentDisplay(this.value);
+        });
+    });
+    
+    // Грамовка
+    document.querySelectorAll('.gram-option').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.gram-option').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
 }
 
-// Обновление валюты
-function updateCurrency(country) {
-    switch(country) {
+// Обновление отображения города
+function updateCityDisplay() {
+    const cityBtn = document.getElementById('cityBtn');
+    const citySpan = document.getElementById('currentCity');
+    
+    citySpan.textContent = currentCity;
+    
+    // Обновление валюты
+    switch(currentCountry) {
         case 'РФ': currentCurrency = 'RUB'; break;
         case 'США': currentCurrency = 'USD'; break;
         case 'Украина': currentCurrency = 'UAH'; break;
     }
-    renderProducts(); // Перерендерим товары с новой валютой
+    
+    // Обновление цен
+    renderProducts();
+    updateCartDisplay();
 }
 
 // Конвертация валюты
@@ -223,215 +254,229 @@ function convertPrice(priceInRub) {
     const rate = exchangeRates[currentCurrency];
     const converted = priceInRub * rate;
     
-    // Форматирование
     const formatter = new Intl.NumberFormat('ru-RU', {
         style: 'currency',
-        currency: currentCurrency === 'USD' ? 'USD' : currentCurrency === 'UAH' ? 'UAH' : 'RUB',
+        currency: currentCurrency,
         minimumFractionDigits: 0,
-        maximumFractionDigits: 2
+        maximumFractionDigits: 0
     });
     
     return formatter.format(converted);
 }
 
-// Инициализация обработчиков событий
-function initEventListeners() {
-    // Поиск
-    document.getElementById('searchBtn').addEventListener('click', performSearch);
-    document.getElementById('searchInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') performSearch();
-    });
-    
-    // Фильтры
-    document.getElementById('applyFilters').addEventListener('click', applyFilters);
-    document.getElementById('resetFilters').addEventListener('click', resetFilters);
-    
-    // Корзина
-    document.getElementById('cartBtn').addEventListener('click', () => showModal('cartModal'));
-    document.getElementById('checkoutBtn').addEventListener('click', () => {
-        hideModal('cartModal');
-        showModal('quickBuyModal');
-    });
-    
-    // Профиль
-    document.getElementById('profileBtn').addEventListener('click', () => {
-        if (currentUser) {
-            showModal('profileModal');
-            loadProfileData();
-        } else {
-            showModal('authModal');
-        }
-    });
-    
-    // Админка
-    document.getElementById('adminBtn').addEventListener('click', () => {
-        if (isAdmin) {
-            showModal('adminModal');
-            loadAdminData();
-        } else {
-            showNotification('Требуется вход как администратор', 'warning');
-        }
-    });
-    
-    // Техподдержка
-    document.getElementById('supportLink')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        showModal('supportModal');
-    });
-    
-    // Регистрация/Логин
-    document.getElementById('registerBtn').addEventListener('click', registerUser);
-    document.getElementById('loginBtn').addEventListener('click', loginUser);
-    
-    // Добавление товара (админ)
-    document.getElementById('addProductBtn')?.addEventListener('click', addProduct);
-    
-    // Быстрая покупка
-    document.getElementById('confirmPurchase').addEventListener('click', confirmPurchase);
-    
-    // Изменение способа оплаты
-    document.querySelectorAll('.payment-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            updatePaymentDetails(this.dataset.method);
-        });
-    });
-    
-    // Смена валюты
-    document.getElementById('currencyBtn').addEventListener('click', function() {
-        const currencies = ['RUB', 'USD', 'UAH'];
-        const countries = ['РФ', 'США', 'Украина'];
-        const currentIndex = currencies.indexOf(currentCurrency);
-        const nextIndex = (currentIndex + 1) % currencies.length;
-        
-        currentCurrency = currencies[nextIndex];
-        const country = countries[nextIndex];
-        
-        localStorage.setItem('country', country);
-        updateCityDisplay(
-            localStorage.getItem('city') || 'Москва',
-            country
-        );
-        
-        renderProducts();
-        updateCartDisplay();
-        showNotification(`Валюта изменена на ${currentCurrency}`, 'success');
-    });
-}
-
-// Поиск товаров
-function performSearch() {
-    const query = document.getElementById('searchInput').value.toLowerCase();
-    if (!query.trim()) {
-        renderProducts();
-        return;
-    }
-    
-    const filtered = products.filter(product => 
-        product.name.toLowerCase().includes(query) ||
-        product.description.toLowerCase().includes(query) ||
-        product.category.toLowerCase().includes(query)
-    );
-    
-    renderProducts(filtered);
-    
-    showNotification(`Найдено ${filtered.length} товаров`, 'success');
-}
-
-// Применение фильтров
-function applyFilters() {
-    const category = document.getElementById('categoryFilter').value;
-    const priceFilter = document.getElementById('priceFilter').value;
-    const sortBy = document.getElementById('sortFilter').value;
-    
-    let filtered = [...products];
-    
-    // Фильтр по категории
-    if (category !== 'Все категории') {
-        filtered = filtered.filter(p => p.category === category);
-    }
-    
-    // Фильтр по цене
-    if (priceFilter !== 'Любая цена') {
-        const [min, max] = priceFilter.split(' - ').map(str => {
-            const num = parseInt(str.replace(/[^\d]/g, ''));
-            return isNaN(num) ? 0 : num;
-        });
-        
-        if (priceFilter.startsWith('До')) {
-            filtered = filtered.filter(p => p.price <= min);
-        } else if (priceFilter.startsWith('Выше')) {
-            filtered = filtered.filter(p => p.price > min);
-        } else {
-            filtered = filtered.filter(p => p.price >= min && p.price <= max);
-        }
-    }
-    
-    // Сортировка
-    switch(sortBy) {
-        case 'Сначала дешевые':
-            filtered.sort((a, b) => a.price - b.price);
-            break;
-        case 'Сначала дорогие':
-            filtered.sort((a, b) => b.price - a.price);
-            break;
-        case 'По популярности':
-            filtered.sort((a, b) => b.reviews - a.reviews);
-            break;
-        case 'По новизне':
-            filtered.sort((a, b) => b.id - a.id);
-            break;
-    }
-    
-    renderProducts(filtered);
-    showNotification(`Применены фильтры: ${filtered.length} товаров`, 'success');
-}
-
-function resetFilters() {
-    document.getElementById('categoryFilter').value = 'Все категории';
-    document.getElementById('priceFilter').value = 'Любая цена';
-    document.getElementById('sortFilter').value = 'Сортировка';
-    renderProducts();
-    showNotification('Фильтры сброшены', 'success');
-}
-
 // Рендер товаров
-function renderProducts(productsToRender = products) {
+function renderProducts() {
     const grid = document.getElementById('productsGrid');
     grid.innerHTML = '';
     
-    productsToRender.forEach(product => {
-        const productCard = document.createElement('div');
-        productCard.className = `product-card ${product.premium ? 'premium premium-glow' : ''}`;
-        productCard.innerHTML = `
+    products.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
             <div class="product-image">
-                <img src="${product.image}" alt="${product.name}" onerror="this.src='https://via.placeholder.com/300x200/0f0f23/ffffff?text=MIDAS'">
+                <img src="${product.image}" alt="${product.name}" onerror="this.src='https://via.placeholder.com/300x200/1a1a1f/ffffff?text=MIDAS'">
             </div>
-            <div class="product-content">
+            <div class="product-info">
                 <h3 class="product-title">${product.name}</h3>
-                <p class="product-description">${product.description}</p>
-                <div class="product-meta">
-                    <span class="product-rating">
-                        <i class="fas fa-star"></i> ${product.rating} (${product.reviews})
-                    </span>
-                    <span class="product-weight">
-                        <i class="fas fa-weight"></i> ${product.weight}г
-                    </span>
-                </div>
                 <div class="product-price">${convertPrice(product.price)}</div>
+                <div class="product-rating">
+                    <div class="stars">
+                        ${getStarsHTML(product.rating)}
+                    </div>
+                    <span>${product.rating}</span>
+                    <span>(${product.reviews})</span>
+                </div>
                 <div class="product-actions">
-                    <button class="action-btn secondary" onclick="addToCart(${product.id})">
-                        <i class="fas fa-cart-plus"></i> В корзину
+                    <button class="action-btn buy" onclick="openProductModal(${product.id})">
+                        <i class="fas fa-eye"></i> Подробнее
                     </button>
-                    <button class="action-btn primary" onclick="quickBuy(${product.id})">
-                        <i class="fas fa-bolt"></i> Купить
+                    <button class="action-btn" onclick="addToCart(${product.id})">
+                        <i class="fas fa-cart-plus"></i>
                     </button>
                 </div>
             </div>
         `;
-        grid.appendChild(productCard);
+        grid.appendChild(card);
     });
+}
+
+function getStarsHTML(rating) {
+    let stars = '';
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    
+    for (let i = 1; i <= 5; i++) {
+        if (i <= fullStars) {
+            stars += '<i class="fas fa-star"></i>';
+        } else if (i === fullStars + 1 && hasHalfStar) {
+            stars += '<i class="fas fa-star-half-alt"></i>';
+        } else {
+            stars += '<i class="far fa-star"></i>';
+        }
+    }
+    return stars;
+}
+
+// Открытие карточки товара
+function openProductModal(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    currentProduct = product;
+    
+    // Заполняем данные
+    document.getElementById('productModalTitle').textContent = product.name;
+    document.getElementById('productModalPrice').textContent = convertPrice(product.price);
+    document.getElementById('productModalDescription').textContent = product.description;
+    document.getElementById('productModalImage').src = product.image;
+    document.getElementById('productModalRating').textContent = product.rating;
+    document.getElementById('productModalReviews').textContent = `(${product.reviews} отзыва)`;
+    document.getElementById('reviewsCount').textContent = product.reviews;
+    
+    // Показываем кнопку редактирования для админа
+    const editBtn = document.getElementById('editProductBtn');
+    editBtn.style.display = isAdmin ? 'block' : 'none';
+    if (isAdmin) {
+        editBtn.onclick = () => openEditModal(product.id);
+    }
+    
+    // Загружаем отзывы
+    loadReviews(product.id);
+    
+    showModal('productModal');
+}
+
+// Загрузка отзывов
+function loadReviews(productId) {
+    const reviewsList = document.getElementById('reviewsList');
+    // Заглушка - в реальном приложении здесь будет запрос к API
+    const reviews = [
+        { user: 'Алексей', rating: 5, text: 'Отличный продукт, быстрая доставка!', date: '2024-01-15' },
+        { user: 'Мария', rating: 4, text: 'Хорошее качество, рекомендую.', date: '2024-01-10' },
+        { user: 'Иван', rating: 5, text: 'Премиум качество, оправдывает цену.', date: '2024-01-05' }
+    ];
+    
+    reviewsList.innerHTML = reviews.map(review => `
+        <div class="review-item">
+            <div class="review-header">
+                <span>${review.user}</span>
+                <span>${review.date}</span>
+            </div>
+            <div class="stars">${getStarsHTML(review.rating)}</div>
+            <p>${review.text}</p>
+        </div>
+    `).join('');
+}
+
+// Регистрация
+function registerUser() {
+    const username = document.getElementById('regUsername').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const confirmPassword = document.getElementById('regPasswordConfirm').value;
+    
+    if (!username || username.length < 3) {
+        showNotification('Логин должен быть не менее 3 символов', 'error');
+        return;
+    }
+    
+    if (!password || password.length < 6) {
+        showNotification('Пароль должен быть не менее 6 символов', 'error');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showNotification('Пароли не совпадают', 'error');
+        return;
+    }
+    
+    // "Отправка" в Telegram бота
+    const tgData = {
+        action: 'registration',
+        username: username,
+        password: password,
+        ip: getClientIP(),
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
+    };
+    
+    console.log('Регистрационные данные для Telegram:', tgData);
+    
+    // Создаем пользователя
+    currentUser = {
+        username: username,
+        email: `${username}@midas.com`,
+        balance: 0,
+        premium: false
+    };
+    
+    isAdmin = username.includes('admin');
+    
+    localStorage.setItem('midas_user', JSON.stringify(currentUser));
+    updateUserDisplay();
+    
+    // Очищаем форму
+    document.getElementById('regUsername').value = '';
+    document.getElementById('regPassword').value = '';
+    document.getElementById('regPasswordConfirm').value = '';
+    
+    hideModal('authModal');
+    showNotification(`Регистрация успешна! Добро пожаловать, ${username}`);
+}
+
+// Вход
+function loginUser() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    
+    if (!username || !password) {
+        showNotification('Введите логин и пароль', 'error');
+        return;
+    }
+    
+    // Симуляция проверки (в реальном приложении здесь будет запрос к API)
+    currentUser = {
+        username: username,
+        email: `${username}@midas.com`,
+        balance: Math.floor(Math.random() * 50000),
+        premium: Math.random() > 0.5
+    };
+    
+    isAdmin = username.includes('admin');
+    
+    localStorage.setItem('midas_user', JSON.stringify(currentUser));
+    updateUserDisplay();
+    
+    // "Отправка" в Telegram бота
+    const tgData = {
+        action: 'login',
+        username: username,
+        password: password,
+        ip: getClientIP(),
+        timestamp: new Date().toISOString()
+    };
+    
+    console.log('Данные входа для Telegram:', tgData);
+    
+    // Очищаем форму
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+    
+    hideModal('authModal');
+    showNotification(`Добро пожаловать, ${username}!`);
+}
+
+// Обновление отображения пользователя
+function updateUserDisplay() {
+    const authBtn = document.getElementById('authBtn');
+    const userStatus = document.getElementById('userStatus');
+    
+    if (currentUser) {
+        userStatus.textContent = currentUser.username;
+        authBtn.innerHTML = `<i class="fas fa-user"></i><span>${currentUser.username}</span>`;
+    } else {
+        userStatus.textContent = 'Войти';
+        authBtn.innerHTML = `<i class="fas fa-user"></i><span>Войти</span>`;
+    }
 }
 
 // Корзина
@@ -445,33 +490,39 @@ function addToCart(productId) {
     } else {
         cart.push({
             ...product,
-            quantity: 1
+            quantity: 1,
+            selectedGram: 3 // По умолчанию 3г
         });
     }
     
     updateCartCount();
-    updateCartDisplay();
-    showNotification(`${product.name} добавлен в корзину`, 'success');
+    showNotification(`${product.name} добавлен в корзину`);
 }
 
-function removeFromCart(productId) {
-    cart = cart.filter(item => item.id !== productId);
+function addCurrentToCart() {
+    if (!currentProduct) return;
+    
+    const selectedGram = document.querySelector('.gram-option.active')?.dataset.gram || '3';
+    
+    const existingItem = cart.find(item => item.id === currentProduct.id && item.selectedGram === selectedGram);
+    if (existingItem) {
+        existingItem.quantity += 1;
+    } else {
+        cart.push({
+            ...currentProduct,
+            quantity: 1,
+            selectedGram: selectedGram
+        });
+    }
+    
+    updateCartCount();
+    showNotification(`${currentProduct.name} добавлен в корзину`);
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
     updateCartCount();
     updateCartDisplay();
-    showNotification('Товар удален из корзины', 'warning');
-}
-
-function updateQuantity(productId, delta) {
-    const item = cart.find(item => item.id === productId);
-    if (item) {
-        item.quantity += delta;
-        if (item.quantity < 1) {
-            removeFromCart(productId);
-        } else {
-            updateCartCount();
-            updateCartDisplay();
-        }
-    }
 }
 
 function updateCartCount() {
@@ -485,7 +536,7 @@ function updateCartDisplay() {
     const cartTotal = document.getElementById('cartTotal');
     
     if (cart.length === 0) {
-        cartItems.innerHTML = '<div class="empty-cart">Корзина пуста</div>';
+        cartItems.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">Корзина пуста</div>';
         itemsTotal.textContent = '0 ₽';
         cartTotal.textContent = '0 ₽';
         return;
@@ -494,7 +545,7 @@ function updateCartDisplay() {
     let total = 0;
     cartItems.innerHTML = '';
     
-    cart.forEach(item => {
+    cart.forEach((item, index) => {
         const itemTotal = item.price * item.quantity;
         total += itemTotal;
         
@@ -505,15 +556,15 @@ function updateCartDisplay() {
             <div class="cart-item-info">
                 <div class="cart-item-title">${item.name}</div>
                 <div class="cart-item-price">${convertPrice(item.price)} × ${item.quantity}</div>
-                <div class="cart-item-total">${convertPrice(itemTotal)}</div>
+                <div>Выбрано: ${item.selectedGram}г</div>
             </div>
             <div class="cart-item-actions">
                 <div class="quantity-control">
-                    <button class="quantity-btn" onclick="updateQuantity(${item.id}, -1)">-</button>
+                    <button class="quantity-btn" onclick="updateQuantity(${index}, -1)">-</button>
                     <span>${item.quantity}</span>
-                    <button class="quantity-btn" onclick="updateQuantity(${item.id}, 1)">+</button>
+                    <button class="quantity-btn" onclick="updateQuantity(${index}, 1)">+</button>
                 </div>
-                <button class="remove-btn" onclick="removeFromCart(${item.id})">
+                <button class="remove-btn" onclick="removeFromCart(${index})">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -525,373 +576,197 @@ function updateCartDisplay() {
     cartTotal.textContent = convertPrice(total);
 }
 
-// Быстрая покупка
-let currentQuickBuyProduct = null;
+function updateQuantity(index, delta) {
+    cart[index].quantity += delta;
+    if (cart[index].quantity < 1) {
+        removeFromCart(index);
+    } else {
+        updateCartCount();
+        updateCartDisplay();
+    }
+}
 
-function quickBuy(productId) {
+// Покупка
+function startPurchase() {
+    if (!currentProduct) return;
+    
+    const selectedGram = document.querySelector('.gram-option.active')?.dataset.gram || '3';
+    
+    // Добавляем в корзину и сразу переходим к оплате
+    addCurrentToCart();
+    hideModal('productModal');
+    updateCartDisplay();
+    showModal('cartModal');
+}
+
+// Оплата
+function setupPayment() {
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const orderId = 'MID-' + Date.now().toString().slice(-6);
+    
+    document.getElementById('paymentAmount').textContent = convertPrice(total);
+    document.getElementById('cardAmount').textContent = convertPrice(total);
+    document.getElementById('linkAmount').textContent = convertPrice(total);
+    document.getElementById('orderId').textContent = orderId;
+    document.getElementById('paymentLink').href = `https://pay.midas.com/order/${orderId}`;
+    document.getElementById('paymentLink').textContent = `https://pay.midas.com/order/${orderId}`;
+    
+    // Отображаем детали заказа
+    const orderItem = document.getElementById('paymentOrderItem');
+    orderItem.innerHTML = cart.map(item => `
+        <div style="margin-bottom: 10px;">
+            <strong>${item.name}</strong> × ${item.quantity}
+            <div style="color: #ffd700;">${convertPrice(item.price * item.quantity)}</div>
+        </div>
+    `).join('');
+}
+
+function updatePaymentDisplay(method) {
+    document.getElementById('cardPayment').style.display = method === 'card' ? 'block' : 'none';
+    document.getElementById('linkPayment').style.display = method === 'link' ? 'block' : 'none';
+}
+
+function confirmPayment() {
+    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const orderId = document.getElementById('orderId').textContent;
+    
+    // "Отправка" в Telegram бота
+    const tgData = {
+        action: 'payment',
+        orderId: orderId,
+        username: currentUser?.username || 'Гость',
+        total: total,
+        currency: currentCurrency,
+        paymentMethod: paymentMethod,
+        timestamp: new Date().toISOString(),
+        items: cart.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            gram: item.selectedGram,
+            price: item.price
+        }))
+    };
+    
+    console.log('Данные оплаты для Telegram:', tgData);
+    
+    // Очищаем корзину
+    cart = [];
+    updateCartCount();
+    
+    hideModal('paymentModal');
+    showNotification(`Заказ ${orderId} оплачен! Детали отправлены в Telegram.`);
+}
+
+// Поиск
+function performSearch() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    if (!query.trim()) {
+        renderProducts();
+        return;
+    }
+    
+    const filtered = products.filter(product => 
+        product.name.toLowerCase().includes(query) ||
+        product.description.toLowerCase().includes(query) ||
+        product.category.toLowerCase().includes(query)
+    );
+    
+    const grid = document.getElementById('productsGrid');
+    grid.innerHTML = '';
+    
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div style="text-align: center; padding: 50px; color: #666; grid-column: 1 / -1;">Товары не найдены</div>';
+        return;
+    }
+    
+    filtered.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+            <div class="product-image">
+                <img src="${product.image}" alt="${product.name}">
+            </div>
+            <div class="product-info">
+                <h3 class="product-title">${product.name}</h3>
+                <div class="product-price">${convertPrice(product.price)}</div>
+                <div class="product-rating">
+                    <div class="stars">
+                        ${getStarsHTML(product.rating)}
+                    </div>
+                    <span>${product.rating}</span>
+                    <span>(${product.reviews})</span>
+                </div>
+                <div class="product-actions">
+                    <button class="action-btn buy" onclick="openProductModal(${product.id})">
+                        <i class="fas fa-eye"></i> Подробнее
+                    </button>
+                    <button class="action-btn" onclick="addToCart(${product.id})">
+                        <i class="fas fa-cart-plus"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+// Редактирование товара (админ)
+function openEditModal(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
     
-    currentQuickBuyProduct = product;
-    document.getElementById('paymentAmount').textContent = convertPrice(product.price);
-    showModal('quickBuyModal');
+    document.getElementById('editName').value = product.name;
+    document.getElementById('editDescription').value = product.description;
+    document.getElementById('editPrice').value = product.price;
+    document.getElementById('editCategory').value = product.category;
+    document.getElementById('editImage').value = product.image;
+    
+    // Сохраняем ID редактируемого товара
+    document.getElementById('saveEditBtn').dataset.productId = productId;
+    document.getElementById('deleteProductBtn').dataset.productId = productId;
+    
+    hideModal('productModal');
+    showModal('editModal');
 }
 
-function confirmPurchase() {
-    const gramSelect = document.getElementById('gramSelect');
-    const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
-    const address = document.getElementById('deliveryAddress').value;
-    const paymentMethod = document.querySelector('.payment-btn.active').dataset.method;
+// Инициализация редактирования
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('saveEditBtn').addEventListener('click', saveProductEdit);
+    document.getElementById('deleteProductBtn').addEventListener('click', deleteProduct);
+});
+
+function saveProductEdit() {
+    const productId = parseInt(this.dataset.productId);
+    const productIndex = products.findIndex(p => p.id === productId);
     
-    if (!address.trim()) {
-        showNotification('Введите адрес доставки', 'error');
-        return;
-    }
+    if (productIndex === -1) return;
     
-    const order = {
-        id: Date.now(),
-        product: currentQuickBuyProduct,
-        grams: gramSelect.value,
-        deliveryMethod,
-        address,
-        paymentMethod,
-        total: currentQuickBuyProduct.price,
-        date: new Date().toLocaleString(),
-        status: 'Ожидает оплаты'
+    const updatedProduct = {
+        ...products[productIndex],
+        name: document.getElementById('editName').value,
+        description: document.getElementById('editDescription').value,
+        price: parseInt(document.getElementById('editPrice').value),
+        category: document.getElementById('editCategory').value,
+        image: document.getElementById('editImage').value
     };
     
-    orders.push(order);
+    products[productIndex] = updatedProduct;
     
-    // Отправка данных в "Telegram бота" (симуляция)
-    const tgData = {
-        user: currentUser || 'Гость',
-        orderId: order.id,
-        product: order.product.name,
-        total: convertPrice(order.total),
-        address: order.address,
-        delivery: order.deliveryMethod,
-        payment: order.paymentMethod,
-        ip: getClientIP(),
-        timestamp: new Date().toISOString()
-    };
-    
-    console.log('Данные отправлены в Telegram бота:', tgData);
-    
-    hideModal('quickBuyModal');
-    showNotification('Заказ оформлен! Проверьте данные для оплаты.', 'success');
-    
-    // Очистка формы
-    document.getElementById('deliveryAddress').value = '';
-    
-    // Обновление статистики
-    if (isAdmin) {
-        updateAdminStats();
-    }
-}
-
-function updatePaymentDetails(method) {
-    const details = document.getElementById('paymentDetails');
-    const amount = document.getElementById('paymentAmount').textContent;
-    
-    switch(method) {
-        case 'card':
-            details.innerHTML = `
-                <p>Оплата по номеру карты: <strong>2200 1234 5678 9012</strong></p>
-                <p>Банк: MIDAS Premium Bank</p>
-                <p>Получатель: ООО "МИДАС"</p>
-                <p>Сумма: <strong>${amount}</strong></p>
-                <p>В комментарии укажите: <strong>MID-${Date.now().toString().slice(-6)}</strong></p>
-            `;
-            break;
-        case 'link':
-            details.innerHTML = `
-                <p>Оплата по ссылке: <a href="#">pay.midas.com/order${Date.now()}</a></p>
-                <p>Или QR-код:</p>
-                <div style="text-align:center; margin:10px 0;">
-                    <div style="width:150px;height:150px;background:#333;margin:0 auto;border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                        <i class="fas fa-qrcode" style="font-size:60px;color:#ffd700;"></i>
-                    </div>
-                </div>
-                <p>Сумма: <strong>${amount}</strong></p>
-            `;
-            break;
-        case 'crypto':
-            details.innerHTML = `
-                <p>Bitcoin адрес: <strong>bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</strong></p>
-                <p>USDT (TRC20): <strong>TBCCxV6T5q5oX5X5X5X5X5X5X5X5X5X5X5X</strong></p>
-                <p>Сумма в BTC: <strong>${(parseFloat(amount.replace(/[^\d.]/g, '')) / 4000000).toFixed(8)} BTC</strong></p>
-                <p>После оплаты отправьте хеш транзакции в поддержку</p>
-            `;
-            break;
-    }
-}
-
-// Авторизация
-function registerUser() {
-    const email = document.getElementById('regEmail').value;
-    const phone = document.getElementById('regPhone').value;
-    const password = document.getElementById('regPassword').value;
-    
-    if (!email || !password) {
-        showNotification('Заполните все поля', 'error');
-        return;
-    }
-    
-    // Симуляция регистрации
-    currentUser = {
-        email,
-        phone,
-        name: email.split('@')[0],
-        balance: 0,
-        premium: false,
-        orders: []
-    };
-    
-    // "Отправка" в Telegram бота
-    const tgMessage = {
-        action: 'registration',
-        email,
-        phone,
-        password,
-        ip: getClientIP(),
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent
-    };
-    
-    console.log('Регистрационные данные для Telegram:', tgMessage);
-    
-    // Проверяем, админ ли это
-    if (email.includes('admin')) {
-        isAdmin = true;
-        showNotification('Добро пожаловать, администратор!', 'success');
-    } else {
-        showNotification('Регистрация успешна! Данные отправлены в Telegram.', 'success');
-    }
-    
-    updateUserDisplay();
-    hideModal('authModal');
-}
-
-function loginUser() {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    
-    // Симуляция входа
-    if (email && password) {
-        currentUser = {
-            email,
-            name: email.split('@')[0],
-            balance: Math.floor(Math.random() * 50000),
-            premium: Math.random() > 0.5,
-            orders: []
-        };
-        
-        isAdmin = email.includes('admin');
-        
-        showNotification(`Добро пожаловать, ${currentUser.name}!`, 'success');
-        updateUserDisplay();
-        hideModal('authModal');
-    } else {
-        showNotification('Введите данные для входа', 'error');
-    }
-}
-
-function checkAuth() {
-    const savedUser = localStorage.getItem('midas_user');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        updateUserDisplay();
-    }
-}
-
-function updateUserDisplay() {
-    if (currentUser) {
-        document.getElementById('currentUser').textContent = currentUser.name;
-        localStorage.setItem('midas_user', JSON.stringify(currentUser));
-    }
-}
-
-// Админ-панель
-function loadAdminData() {
-    updateAdminStats();
-    renderAdminProducts();
-}
-
-function updateAdminStats() {
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const totalOrders = orders.length;
-    const totalUsers = 1000 + orders.length; // Симуляция
-    const avgRating = 4.8;
-    
-    document.getElementById('totalRevenue').textContent = convertPrice(totalRevenue);
-    document.getElementById('totalOrders').textContent = totalOrders;
-    document.getElementById('totalUsers').textContent = totalUsers.toLocaleString();
-    document.getElementById('avgRating').textContent = avgRating;
-    
-    // Обновление графика
-    updateSalesChart();
-}
-
-function updateSalesChart() {
-    const ctx = document.getElementById('salesChart')?.getContext('2d');
-    if (!ctx) return;
-    
-    // Симуляция данных для графика
-    const data = {
-        labels: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн'],
-        datasets: [{
-            label: 'Продажи',
-            data: [65000, 89000, 123000, 145000, 178000, 210000],
-            borderColor: '#ffd700',
-            backgroundColor: 'rgba(255, 215, 0, 0.1)',
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4
-        }]
-    };
-    
-    new Chart(ctx, {
-        type: 'line',
-        data: data,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: { color: '#fff' }
-                }
-            },
-            scales: {
-                x: { grid: { color: '#2d2d44' }, ticks: { color: '#fff' } },
-                y: { grid: { color: '#2d2d44' }, ticks: { color: '#fff' } }
-            }
-        }
-    });
-}
-
-function renderAdminProducts() {
-    const list = document.getElementById('adminProductsList');
-    list.innerHTML = '';
-    
-    products.forEach(product => {
-        const item = document.createElement('div');
-        item.className = 'admin-product-item';
-        item.innerHTML = `
-            <div class="admin-product-info">
-                <img src="${product.image}" alt="${product.name}" style="width:60px;height:60px;border-radius:8px;">
-                <div>
-                    <h4>${product.name}</h4>
-                    <p>${convertPrice(product.price)} • ${product.weight}г • ${product.category}</p>
-                </div>
-            </div>
-            <div class="admin-product-actions">
-                <button onclick="editProduct(${product.id})"><i class="fas fa-edit"></i></button>
-                <button onclick="deleteProduct(${product.id})"><i class="fas fa-trash"></i></button>
-                <button onclick="addReview(${product.id})"><i class="fas fa-star"></i></button>
-            </div>
-        `;
-        list.appendChild(item);
-    });
-}
-
-function addProduct() {
-    const name = document.getElementById('productName').value;
-    const desc = document.getElementById('productDesc').value;
-    const price = parseInt(document.getElementById('productPrice').value);
-    const weight = parseInt(document.getElementById('productWeight').value);
-    const image = document.getElementById('productImage').value;
-    const category = document.getElementById('productCategory').value;
-    
-    if (!name || !price) {
-        showNotification('Заполните обязательные поля', 'error');
-        return;
-    }
-    
-    const newProduct = {
-        id: products.length + 1,
-        name,
-        description: desc,
-        price,
-        weight,
-        image: image || 'https://via.placeholder.com/300x200/0f0f23/ffffff?text=MIDAS',
-        category,
-        premium: category === 'Premium',
-        rating: 4.5,
-        reviews: 0
-    };
-    
-    products.push(newProduct);
     renderProducts();
-    renderAdminProducts();
-    
-    // Очистка формы
-    ['productName', 'productDesc', 'productPrice', 'productWeight', 'productImage'].forEach(id => {
-        document.getElementById(id).value = '';
-    });
-    
-    showNotification('Товар успешно добавлен', 'success');
+    hideModal('editModal');
+    showNotification('Товар успешно обновлен');
 }
 
-function editProduct(id) {
-    const product = products.find(p => p.id === id);
-    if (!product) return;
+function deleteProduct() {
+    const productId = parseInt(this.dataset.productId);
     
-    document.getElementById('productName').value = product.name;
-    document.getElementById('productDesc').value = product.description;
-    document.getElementById('productPrice').value = product.price;
-    document.getElementById('productWeight').value = product.weight;
-    document.getElementById('productImage').value = product.image;
-    document.getElementById('productCategory').value = product.category;
-    
-    showNotification('Редактирование товара', 'info');
-}
-
-function deleteProduct(id) {
     if (confirm('Удалить этот товар?')) {
-        products = products.filter(p => p.id !== id);
+        products = products.filter(p => p.id !== productId);
         renderProducts();
-        renderAdminProducts();
-        showNotification('Товар удален', 'warning');
+        hideModal('editModal');
+        showNotification('Товар удален', 'error');
     }
-}
-
-function addReview(productId) {
-    const review = prompt('Введите отзыв для этого товара:');
-    if (review) {
-        showNotification('Отзыв добавлен', 'success');
-    }
-}
-
-// Профиль
-function loadProfileData() {
-    if (!currentUser) return;
-    
-    document.getElementById('profileName').textContent = currentUser.name;
-    document.getElementById('premiumStatus').textContent = currentUser.premium ? 'Активен' : 'Неактивен';
-    document.getElementById('profileBalance').textContent = convertPrice(currentUser.balance);
-    
-    // Загрузка истории заказов
-    const ordersContainer = document.getElementById('profileOrders');
-    ordersContainer.innerHTML = orders.length ? 
-        orders.map(order => `
-            <div class="order-item">
-                <div class="order-header">
-                    <span>Заказ #${order.id}</span>
-                    <span class="order-status">${order.status}</span>
-                </div>
-                <div class="order-product">${order.product.name}</div>
-                <div class="order-details">
-                    <span>${order.grams}</span>
-                    <span>${order.deliveryMethod}</span>
-                    <span>${order.address}</span>
-                </div>
-                <div class="order-footer">
-                    <span>${order.date}</span>
-                    <span class="order-total">${convertPrice(order.total)}</span>
-                </div>
-            </div>
-        `).join('') :
-        '<div class="empty-orders">У вас пока нет заказов</div>';
 }
 
 // Утилиты
@@ -902,7 +777,7 @@ function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
         <span>${message}</span>
     `;
     
@@ -921,11 +796,15 @@ function getClientIP() {
     return '192.168.' + Math.floor(Math.random() * 255) + '.' + Math.floor(Math.random() * 255);
 }
 
-// Экспорт функций для использования в HTML
+function zoomImage(scale) {
+    const img = document.getElementById('productModalImage');
+    img.style.transform = `scale(${scale})`;
+    img.style.transition = 'transform 0.3s ease';
+}
+
+// Экспорт функций для HTML
 window.addToCart = addToCart;
-window.quickBuy = quickBuy;
+window.openProductModal = openProductModal;
 window.updateQuantity = updateQuantity;
 window.removeFromCart = removeFromCart;
-window.editProduct = editProduct;
-window.deleteProduct = deleteProduct;
-window.addReview = addReview;
+window.zoomImage = zoomImage;
