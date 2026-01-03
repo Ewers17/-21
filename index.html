@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIDAS - Premium Marketplace</title>
+    <title>MIDAS | Premium Marketplace</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -11,38 +11,55 @@
 <body>
     <!-- Модальное окно выбора города -->
     <div id="cityModal" class="modal">
-        <div class="modal-content">
-            <h2><i class="fas fa-map-marker-alt"></i> Выберите ваш город</h2>
-            <div class="city-options">
-                <button class="city-btn" data-city="Москва" data-country="РФ"><i class="fas fa-flag"></i> Москва, РФ</button>
-                <button class="city-btn" data-city="Нью-Йорк" data-country="США"><i class="fas fa-flag-usa"></i> Нью-Йорк, США</button>
-                <button class="city-btn" data-city="Киев" data-country="Украина"><i class="fas fa-flag"></i> Киев, Украина</button>
+        <div class="modal-content city-modal">
+            <div class="modal-header">
+                <i class="fas fa-map-marker-alt"></i>
+                <h2>Выберите город</h2>
+                <p>Это определит валюту и доступность товаров</p>
             </div>
-            <p class="modal-subtext">Этот выбор определит валюту и доступные способы доставки</p>
+            <div class="city-grid">
+                <button class="city-card" data-city="Москва" data-country="РФ">
+                    <i class="fas fa-flag"></i>
+                    <span>Москва</span>
+                    <small>Россия • RUB</small>
+                </button>
+                <button class="city-card" data-city="Нью-Йорк" data-country="США">
+                    <i class="fas fa-flag-usa"></i>
+                    <span>Нью-Йорк</span>
+                    <small>США • USD</small>
+                </button>
+                <button class="city-card" data-city="Киев" data-country="Украина">
+                    <i class="fas fa-flag"></i>
+                    <span>Киев</span>
+                    <small>Украина • UAH</small>
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Модальное окно регистрации/логина -->
+    <!-- Модальное окно авторизации -->
     <div id="authModal" class="modal">
-        <div class="modal-content">
-            <div class="auth-tabs">
-                <button class="tab-btn active" data-tab="login"><i class="fas fa-sign-in-alt"></i> Войти</button>
-                <button class="tab-btn" data-tab="register"><i class="fas fa-user-plus"></i> Регистрация</button>
+        <div class="modal-content auth-modal">
+            <div class="modal-header">
+                <h2>Вход в MIDAS</h2>
+                <button class="close-modal">&times;</button>
             </div>
-            
-            <div id="loginForm" class="auth-form active">
-                <input type="text" id="loginEmail" placeholder="Email или телефон" class="auth-input">
+            <div class="auth-form active" id="loginForm">
+                <input type="text" id="loginUsername" placeholder="Логин" class="auth-input">
                 <input type="password" id="loginPassword" placeholder="Пароль" class="auth-input">
-                <button id="loginBtn" class="auth-submit"><i class="fas fa-lock"></i> Войти</button>
-                <p class="auth-quick">Быстрый вход через <button class="quick-auth"><i class="fab fa-google"></i> Google</button> или <button class="quick-auth"><i class="fab fa-telegram"></i> Telegram</button></p>
+                <button id="loginBtn" class="auth-btn">
+                    <i class="fas fa-sign-in-alt"></i> Войти
+                </button>
+                <p class="auth-switch">Нет аккаунта? <a href="#" id="showRegister">Зарегистрироваться</a></p>
             </div>
-            
-            <div id="registerForm" class="auth-form">
-                <input type="text" id="regEmail" placeholder="Email" class="auth-input">
-                <input type="tel" id="regPhone" placeholder="Телефон" class="auth-input">
+            <div class="auth-form" id="registerForm">
+                <input type="text" id="regUsername" placeholder="Логин (минимум 3 символа)" class="auth-input">
                 <input type="password" id="regPassword" placeholder="Пароль" class="auth-input">
-                <button id="registerBtn" class="auth-submit"><i class="fas fa-user-check"></i> Зарегистрироваться</button>
-                <p class="auth-notice">Данные будут отправлены в Telegram-бота</p>
+                <input type="password" id="regPasswordConfirm" placeholder="Повторите пароль" class="auth-input">
+                <button id="registerBtn" class="auth-btn">
+                    <i class="fas fa-user-plus"></i> Создать аккаунт
+                </button>
+                <p class="auth-switch">Уже есть аккаунт? <a href="#" id="showLogin">Войти</a></p>
             </div>
         </div>
     </div>
@@ -50,381 +67,331 @@
     <!-- Шапка -->
     <header class="header">
         <div class="container">
-            <div class="logo">
+            <div class="logo" onclick="window.location.reload()">
                 <i class="fas fa-crown"></i>
                 <h1>MIDAS</h1>
-                <span class="logo-sub">Marketplace</span>
             </div>
             
             <div class="search-bar">
                 <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="Поиск среди 10,000+ товаров...">
-                <button id="searchBtn" class="search-btn"><i class="fas fa-arrow-right"></i></button>
+                <input type="text" id="searchInput" placeholder="Поиск товаров...">
             </div>
             
             <div class="header-actions">
-                <button class="action-btn" id="currencyBtn">
-                    <i class="fas fa-ruble-sign"></i>
-                    <span id="currencyText">RUB</span>
+                <button class="header-btn" id="cityBtn">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span id="currentCity">Москва</span>
                 </button>
-                <button class="action-btn" id="profileBtn">
+                <button class="header-btn" id="authBtn">
                     <i class="fas fa-user"></i>
-                    <span>Профиль</span>
+                    <span id="userStatus">Войти</span>
                 </button>
-                <button class="action-btn cart-btn" id="cartBtn">
+                <button class="header-btn cart-btn" id="cartBtn">
                     <i class="fas fa-shopping-cart"></i>
-                    <span>Корзина</span>
                     <span class="cart-count" id="cartCount">0</span>
-                </button>
-                <button class="action-btn admin-btn" id="adminBtn">
-                    <i class="fas fa-cog"></i>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Навигация -->
-    <nav class="navbar">
-        <div class="container">
-            <div class="nav-categories">
-                <button class="nav-btn active"><i class="fas fa-th-large"></i> Все товары</button>
-                <button class="nav-btn"><i class="fas fa-star"></i> Premium</button>
-                <button class="nav-btn"><i class="fas fa-shipping-fast"></i> Быстрая доставка</button>
-                <button class="nav-btn"><i class="fas fa-chart-line"></i> Популярное</button>
-                <button class="nav-btn"><i class="fas fa-tags"></i> Акции</button>
-            </div>
-            
-            <div class="user-info">
-                <span id="currentCity"><i class="fas fa-map-marker-alt"></i> Москва</span>
-                <span id="currentUser">Гость</span>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Фильтры -->
-    <div class="filters-bar">
-        <div class="container">
-            <select id="categoryFilter" class="filter-select">
-                <option>Все категории</option>
-                <option>Электроника</option>
-                <option>Одежда</option>
-                <option>Продукты</option>
-                <option>Premium</option>
-            </select>
-            
-            <select id="priceFilter" class="filter-select">
-                <option>Любая цена</option>
-                <option>До 1,000 ₽</option>
-                <option>1,000 - 5,000 ₽</option>
-                <option>5,000 - 20,000 ₽</option>
-                <option>Выше 20,000 ₽</option>
-            </select>
-            
-            <select id="sortFilter" class="filter-select">
-                <option>Сортировка</option>
-                <option>По популярности</option>
-                <option>Сначала дешевые</option>
-                <option>Сначала дорогие</option>
-                <option>По новизне</option>
-            </select>
-            
-            <div class="filter-actions">
-                <button id="applyFilters" class="filter-btn"><i class="fas fa-filter"></i> Применить</button>
-                <button id="resetFilters" class="filter-btn"><i class="fas fa-redo"></i> Сбросить</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Основной контент -->
-    <main class="container main-content">
-        <div class="content-wrapper">
-            <!-- Боковая панель (скрыта на мобильных) -->
-            <aside class="sidebar" id="sidebar">
-                <div class="sidebar-section">
-                    <h3><i class="fas fa-sliders-h"></i> Расширенные фильтры</h3>
-                    <div class="filter-group">
-                        <label>Рейтинг товара</label>
-                        <div class="rating-filter">
-                            <button class="star-btn" data-rating="5">★★★★★</button>
-                            <button class="star-btn" data-rating="4">★★★★☆ и выше</button>
-                            <button class="star-btn" data-rating="3">★★★☆☆ и выше</button>
-                        </div>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Вес (граммы)</label>
-                        <input type="range" id="weightRange" min="1" max="1000" value="500" class="range-slider">
-                        <div class="range-values">
-                            <span>1г</span>
-                            <span id="currentWeight">500г</span>
-                            <span>1000г</span>
-                        </div>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Способ получения</label>
-                        <div class="delivery-options">
-                            <label><input type="checkbox" name="delivery" value="pickup" checked> Самовывоз</label>
-                            <label><input type="checkbox" name="delivery" value="courier" checked> Курьер</label>
-                            <label><input type="checkbox" name="delivery" value="post"> Почта</label>
-                            <label><input type="checkbox" name="delivery" value="terminal"> Терминал</label>
+    <main class="container">
+        <div class="content-header">
+            <h2><i class="fas fa-gem"></i> Premium Товары</h2>
+            <div class="view-controls">
+                <button class="view-btn active" data-view="grid"><i class="fas fa-th-large"></i></button>
+                <button class="view-btn" data-view="list"><i class="fas fa-list"></i></button>
+            </div>
+        </div>
+
+        <div class="products-grid" id="productsGrid">
+            <!-- Товары загружаются через JS -->
+        </div>
+    </main>
+
+    <!-- Модальное окно товара -->
+    <div id="productModal" class="modal">
+        <div class="modal-content product-modal">
+            <div class="product-modal-header">
+                <button class="close-modal">&times;</button>
+                <button class="edit-product-btn" id="editProductBtn" style="display: none;">
+                    <i class="fas fa-edit"></i> Редактировать
+                </button>
+            </div>
+            
+            <div class="product-modal-content">
+                <div class="product-image-container">
+                    <div class="main-image">
+                        <img id="productModalImage" src="" alt="">
+                        <div class="image-zoom">
+                            <button class="zoom-btn" onclick="zoomImage(1.5)"><i class="fas fa-search-plus"></i></button>
+                            <button class="zoom-btn" onclick="zoomImage(1)"><i class="fas fa-search-minus"></i></button>
                         </div>
                     </div>
                 </div>
                 
-                <div class="sidebar-section">
-                    <h3><i class="fas fa-fire"></i> Горячие предложения</h3>
-                    <div class="hot-offers">
-                        <div class="hot-item">🔥 Скидка 20% на первый заказ</div>
-                        <div class="hot-item">🚚 Бесплатная доставка от 5,000 ₽</div>
-                        <div class="hot-item">🎁 Premium товары со скидкой</div>
+                <div class="product-details">
+                    <div class="product-header">
+                        <h2 id="productModalTitle"></h2>
+                        <div class="product-price" id="productModalPrice"></div>
+                    </div>
+                    
+                    <div class="product-rating">
+                        <div class="stars">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star-half-alt"></i>
+                        </div>
+                        <span id="productModalRating">4.8</span>
+                        <span class="reviews-count" id="productModalReviews">(124 отзыва)</span>
+                    </div>
+                    
+                    <div class="gram-selection">
+                        <h3>Выберите количество:</h3>
+                        <div class="gram-options">
+                            <button class="gram-option" data-gram="2">2г</button>
+                            <button class="gram-option active" data-gram="3">3г</button>
+                            <button class="gram-option" data-gram="4">4г</button>
+                            <button class="gram-option" data-gram="6">6г</button>
+                            <button class="gram-option" data-gram="B">B</button>
+                            <button class="gram-option" data-gram="S">S</button>
+                        </div>
+                    </div>
+                    
+                    <div class="product-actions">
+                        <button class="buy-btn" id="buyNowBtn">
+                            <i class="fas fa-bolt"></i> Купить сейчас
+                        </button>
+                        <button class="cart-btn" id="addToCartModalBtn">
+                            <i class="fas fa-cart-plus"></i> В корзину
+                        </button>
+                    </div>
+                    
+                    <div class="product-description">
+                        <h3>Описание</h3>
+                        <p id="productModalDescription"></p>
+                    </div>
+                    
+                    <div class="product-reviews">
+                        <h3>Отзывы <span id="reviewsCount">124</span></h3>
+                        <div class="reviews-list" id="reviewsList">
+                            <!-- Отзывы загружаются через JS -->
+                        </div>
+                        <textarea class="review-input" id="reviewInput" placeholder="Оставьте ваш отзыв..." rows="3"></textarea>
+                        <button class="review-submit" id="submitReviewBtn">
+                            <i class="fas fa-paper-plane"></i> Отправить отзыв
+                        </button>
                     </div>
                 </div>
-            </aside>
-
-            <!-- Товары -->
-            <section class="products-section">
-                <h2 class="section-title"><i class="fas fa-gem"></i> Премиум товары</h2>
-                <div class="products-grid" id="productsGrid">
-                    <!-- Товары загружаются через JS -->
-                </div>
-            </section>
+            </div>
         </div>
-    </main>
+    </div>
+
+    <!-- Админ панель редактирования -->
+    <div id="editModal" class="modal">
+        <div class="modal-content edit-modal">
+            <div class="modal-header">
+                <h2><i class="fas fa-edit"></i> Редактирование товара</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            
+            <div class="edit-form">
+                <div class="form-group">
+                    <label>Название товара</label>
+                    <input type="text" id="editName" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea id="editDescription" class="form-input" rows="4"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Цена (в рублях)</label>
+                        <input type="number" id="editPrice" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Категория</label>
+                        <select id="editCategory" class="form-input">
+                            <option>Premium</option>
+                            <option>Электроника</option>
+                            <option>Одежда</option>
+                            <option>Аксессуары</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>URL изображения</label>
+                    <input type="text" id="editImage" class="form-input">
+                </div>
+                
+                <div class="form-actions">
+                    <button class="save-btn" id="saveEditBtn">
+                        <i class="fas fa-save"></i> Сохранить изменения
+                    </button>
+                    <button class="delete-btn" id="deleteProductBtn">
+                        <i class="fas fa-trash"></i> Удалить товар
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Корзина -->
     <div id="cartModal" class="modal right-modal">
-        <div class="modal-content">
+        <div class="modal-content cart-modal">
             <div class="modal-header">
                 <h2><i class="fas fa-shopping-cart"></i> Корзина</h2>
                 <button class="close-modal">&times;</button>
             </div>
+            
             <div class="cart-items" id="cartItems">
                 <!-- Товары в корзине -->
             </div>
+            
             <div class="cart-summary">
                 <div class="summary-row">
-                    <span>Товары (3)</span>
+                    <span>Товары</span>
                     <span id="itemsTotal">0 ₽</span>
                 </div>
                 <div class="summary-row">
                     <span>Доставка</span>
-                    <span id="deliveryCost">0 ₽</span>
+                    <span>0 ₽</span>
                 </div>
                 <div class="summary-row total">
                     <span>Итого</span>
                     <span id="cartTotal">0 ₽</span>
                 </div>
-                <button id="checkoutBtn" class="checkout-btn"><i class="fas fa-bolt"></i> Быстрая покупка</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Быстрая покупка -->
-    <div id="quickBuyModal" class="modal">
-        <div class="modal-content">
-            <h2><i class="fas fa-bolt"></i> Быстрая покупка</h2>
-            <div class="quick-buy-form">
-                <div class="form-group">
-                    <label><i class="fas fa-weight"></i> Граммовка</label>
-                    <select id="gramSelect" class="form-control">
-                        <option>1г - 1,000 ₽</option>
-                        <option>5г - 4,500 ₽</option>
-                        <option>10г - 8,000 ₽</option>
-                        <option>50г - 35,000 ₽</option>
-                    </select>
-                </div>
                 
-                <div class="form-group">
-                    <label><i class="fas fa-truck"></i> Способ получения</label>
-                    <div class="delivery-methods">
-                        <label class="delivery-method">
-                            <input type="radio" name="deliveryMethod" value="pickup" checked>
+                <div class="delivery-methods">
+                    <h3>Способ получения</h3>
+                    <div class="methods-grid">
+                        <label class="method-option">
+                            <input type="radio" name="delivery" value="pickup" checked>
                             <div class="method-card">
                                 <i class="fas fa-store"></i>
                                 <span>Самовывоз</span>
-                                <small>2-4 часа</small>
                             </div>
                         </label>
-                        <label class="delivery-method">
-                            <input type="radio" name="deliveryMethod" value="courier">
+                        <label class="method-option">
+                            <input type="radio" name="delivery" value="courier">
                             <div class="method-card">
                                 <i class="fas fa-motorcycle"></i>
                                 <span>Курьер</span>
-                                <small>1-2 дня</small>
                             </div>
                         </label>
-                        <label class="delivery-method">
-                            <input type="radio" name="deliveryMethod" value="terminal">
+                        <label class="method-option">
+                            <input type="radio" name="delivery" value="terminal">
                             <div class="method-card">
                                 <i class="fas fa-cube"></i>
                                 <span>Терминал</span>
-                                <small>3-5 дней</small>
                             </div>
                         </label>
-                        <label class="delivery-method">
-                            <input type="radio" name="deliveryMethod" value="post">
+                        <label class="method-option">
+                            <input type="radio" name="delivery" value="post">
                             <div class="method-card">
                                 <i class="fas fa-box"></i>
                                 <span>Почта</span>
-                                <small>5-10 дней</small>
                             </div>
                         </label>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label><i class="fas fa-map-marked-alt"></i> Улица/Район</label>
-                    <input type="text" id="deliveryAddress" placeholder="Введите улицу или район" class="form-control">
-                </div>
-                
-                <div class="form-group">
-                    <label><i class="fas fa-credit-card"></i> Способ оплаты</label>
-                    <div class="payment-methods">
-                        <button class="payment-btn active" data-method="card">
-                            <i class="fas fa-credit-card"></i> Карта
-                        </button>
-                        <button class="payment-btn" data-method="link">
-                            <i class="fas fa-link"></i> Ссылка
-                        </button>
-                        <button class="payment-btn" data-method="crypto">
-                            <i class="fas fa-coins"></i> Crypto
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="payment-summary">
-                    <h3>К оплате: <span id="paymentAmount">1,000 ₽</span></h3>
-                    <div id="paymentDetails">
-                        <p>Оплата по номеру карты: <strong>2200 1234 5678 9012</strong></p>
-                        <p>Или по ссылке: <a href="#">pay.midas.com/order123</a></p>
-                        <p>Укажите номер заказа: <strong>MID-123456</strong></p>
-                    </div>
-                </div>
-                
-                <button id="confirmPurchase" class="purchase-btn"><i class="fas fa-lock"></i> Подтвердить покупку</button>
+                <button class="checkout-btn" id="checkoutBtn">
+                    <i class="fas fa-lock"></i> Перейти к оплате
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Админ панель -->
-    <div id="adminModal" class="modal admin-modal">
-        <div class="modal-content">
+    <!-- Оплата -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content payment-modal">
             <div class="modal-header">
-                <h2><i class="fas fa-crown"></i> Панель администратора MIDAS</h2>
+                <h2><i class="fas fa-credit-card"></i> Оплата заказа</h2>
                 <button class="close-modal">&times;</button>
             </div>
             
-            <div class="admin-tabs">
-                <button class="admin-tab active" data-tab="products"><i class="fas fa-box"></i> Товары</button>
-                <button class="admin-tab" data-tab="orders"><i class="fas fa-shopping-cart"></i> Заказы</button>
-                <button class="admin-tab" data-tab="stats"><i class="fas fa-chart-bar"></i> Статистика</button>
-                <button class="admin-tab" data-tab="reviews"><i class="fas fa-star"></i> Отзывы</button>
-                <button class="admin-tab" data-tab="users"><i class="fas fa-users"></i> Пользователи</button>
-                <button class="admin-tab" data-tab="settings"><i class="fas fa-cog"></i> Настройки</button>
-            </div>
-            
-            <div class="admin-content">
-                <div id="productsTab" class="tab-content active">
-                    <h3><i class="fas fa-plus-circle"></i> Добавить товар</h3>
-                    <div class="admin-form">
-                        <input type="text" id="productName" placeholder="Название товара" class="admin-input">
-                        <textarea id="productDesc" placeholder="Описание" class="admin-input"></textarea>
-                        <div class="form-row">
-                            <input type="number" id="productPrice" placeholder="Цена в рублях" class="admin-input">
-                            <input type="number" id="productWeight" placeholder="Вес (г)" class="admin-input">
-                        </div>
-                        <input type="text" id="productImage" placeholder="URL изображения" class="admin-input">
-                        <select id="productCategory" class="admin-input">
-                            <option>Электроника</option>
-                            <option>Одежда</option>
-                            <option>Продукты</option>
-                            <option>Premium</option>
-                        </select>
-                        <button id="addProductBtn" class="admin-btn"><i class="fas fa-save"></i> Добавить товар</button>
+            <div class="payment-details">
+                <div class="order-summary">
+                    <h3>Детали заказа</h3>
+                    <div class="order-item" id="paymentOrderItem">
+                        <!-- Детали заказа -->
                     </div>
-                    
-                    <h3><i class="fas fa-edit"></i> Управление товарами</h3>
-                    <div class="admin-list" id="adminProductsList"></div>
-                </div>
-                
-                <div id="statsTab" class="tab-content">
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <i class="fas fa-chart-line"></i>
-                            <h4>Общий оборот</h4>
-                            <p id="totalRevenue">1,245,000 ₽</p>
-                        </div>
-                        <div class="stat-card">
-                            <i class="fas fa-shopping-cart"></i>
-                            <h4>Всего заказов</h4>
-                            <p id="totalOrders">1,245</p>
-                        </div>
-                        <div class="stat-card">
-                            <i class="fas fa-users"></i>
-                            <h4>Пользователи</h4>
-                            <p id="totalUsers">5,678</p>
-                        </div>
-                        <div class="stat-card">
-                            <i class="fas fa-star"></i>
-                            <h4>Средний рейтинг</h4>
-                            <p id="avgRating">4.8</p>
-                        </div>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <canvas id="salesChart"></canvas>
+                    <div class="order-total">
+                        <span>К оплате:</span>
+                        <span id="paymentAmount">0 ₽</span>
                     </div>
                 </div>
                 
-                <!-- Остальные вкладки админки -->
-                <div id="ordersTab" class="tab-content">
-                    <h3>Управление заказами</h3>
-                    <!-- Контент заказов -->
+                <div class="payment-methods">
+                    <h3>Выберите способ оплаты</h3>
+                    <div class="payment-options">
+                        <label class="payment-option">
+                            <input type="radio" name="payment" value="card" checked>
+                            <div class="payment-card">
+                                <i class="fas fa-credit-card"></i>
+                                <span>Банковская карта</span>
+                            </div>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="payment" value="link">
+                            <div class="payment-card">
+                                <i class="fas fa-link"></i>
+                                <span>Платежная ссылка</span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="payment-info" id="cardPayment">
+                        <div class="payment-card-details">
+                            <p><strong>Номер карты:</strong> 2200 1234 5678 9012</p>
+                            <p><strong>Получатель:</strong> ООО "MIDAS"</p>
+                            <p><strong>Сумма к оплате:</strong> <span id="cardAmount">0 ₽</span></p>
+                            <p><strong>Комментарий к платежу:</strong> MID-<span id="orderId">000001</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="payment-info" id="linkPayment" style="display: none;">
+                        <div class="payment-link-details">
+                            <p>Ссылка для оплаты:</p>
+                            <a href="#" id="paymentLink" class="payment-link">https://pay.midas.com/order/000001</a>
+                            <div class="qr-code">
+                                <i class="fas fa-qrcode"></i>
+                            </div>
+                            <p>Сумма: <span id="linkAmount">0 ₽</span></p>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Личный кабинет -->
-    <div id="profileModal" class="modal">
-        <div class="modal-content">
-            <div class="profile-header">
-                <div class="profile-avatar">
-                    <i class="fas fa-user-circle"></i>
-                </div>
-                <div class="profile-info">
-                    <h2 id="profileName">Гость</h2>
-                    <p><i class="fas fa-star"></i> Premium статус: <span id="premiumStatus">Неактивен</span></p>
-                    <p><i class="fas fa-coins"></i> Баланс: <span id="profileBalance">0 ₽</span></p>
-                </div>
-            </div>
-            
-            <div class="profile-tabs">
-                <button class="profile-tab active" data-tab="orders"><i class="fas fa-history"></i> Мои заказы</button>
-                <button class="profile-tab" data-tab="reviews"><i class="fas fa-comment"></i> Мои отзывы</button>
-                <button class="profile-tab" data-tab="settings"><i class="fas fa-cog"></i> Настройки</button>
-                <button class="profile-tab" data-tab="support"><i class="fas fa-headset"></i> Поддержка</button>
-            </div>
-            
-            <div class="profile-content">
-                <div id="profileOrders" class="tab-content active">
-                    <!-- История заказов -->
-                </div>
+                
+                <button class="confirm-payment-btn" id="confirmPaymentBtn">
+                    <i class="fas fa-check-circle"></i> Подтвердить оплату
+                </button>
             </div>
         </div>
     </div>
 
     <!-- Техподдержка -->
     <div id="supportModal" class="modal">
-        <div class="modal-content">
-            <h2><i class="fas fa-headset"></i> Техническая поддержка</h2>
-            <div class="support-chat" id="supportChat">
-                <!-- Сообщения поддержки -->
+        <div class="modal-content support-modal">
+            <div class="modal-header">
+                <h2><i class="fas fa-headset"></i> Техподдержка</h2>
+                <button class="close-modal">&times;</button>
             </div>
-            <div class="support-input">
-                <input type="text" id="supportMessage" placeholder="Опишите вашу проблему...">
-                <button id="sendSupport"><i class="fas fa-paper-plane"></i></button>
+            <div class="support-content">
+                <p>Свяжитесь с нами для решения вопросов:</p>
+                <div class="support-contacts">
+                    <a href="https://t.me/midas_support" class="support-link">
+                        <i class="fab fa-telegram"></i> Telegram
+                    </a>
+                    <a href="#" class="support-link">
+                        <i class="fas fa-envelope"></i> support@midas.com
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -432,39 +399,18 @@
     <!-- Футер -->
     <footer class="footer">
         <div class="container">
-            <div class="footer-grid">
-                <div class="footer-section">
-                    <h3><i class="fas fa-crown"></i> MIDAS Marketplace</h3>
-                    <p>Премиум платформа для безопасных покупок</p>
-                    <div class="footer-social">
-                        <a href="#"><i class="fab fa-telegram"></i></a>
-                        <a href="#"><i class="fab fa-whatsapp"></i></a>
-                        <a href="#"><i class="fab fa-vk"></i></a>
-                    </div>
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fas fa-crown"></i>
+                    <span>MIDAS</span>
                 </div>
-                
-                <div class="footer-section">
-                    <h4>Помощь</h4>
-                    <a href="#"><i class="fas fa-question-circle"></i> FAQ</a>
-                    <a href="#" id="supportLink"><i class="fas fa-headset"></i> Техподдержка</a>
-                    <a href="#"><i class="fas fa-shield-alt"></i> Безопасность</a>
+                <div class="footer-links">
+                    <a href="#" id="supportFooterBtn">Поддержка</a>
+                    <span>•</span>
+                    <a href="#" id="adminFooterBtn">Администратору</a>
                 </div>
-                
-                <div class="footer-section">
-                    <h4>О нас</h4>
-                    <a href="#"><i class="fas fa-info-circle"></i> О компании</a>
-                    <a href="#"><i class="fas fa-newspaper"></i> Новости</a>
-                    <a href="#"><i class="fas fa-briefcase"></i> Вакансии</a>
-                </div>
-            </div>
-            
-            <div class="footer-bottom">
-                <p>© 2024 MIDAS Marketplace. Все права защищены.</p>
-                <div class="footer-payments">
-                    <i class="fab fa-cc-visa"></i>
-                    <i class="fab fa-cc-mastercard"></i>
-                    <i class="fab fa-bitcoin"></i>
-                    <i class="fas fa-qrcode"></i>
+                <div class="footer-copy">
+                    © 2024 MIDAS Marketplace
                 </div>
             </div>
         </div>
